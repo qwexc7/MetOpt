@@ -1,0 +1,3488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Симплекс-метод · разбор примера</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --paper: #fffdf8;
+      --ink: #1c1916;
+      --muted: #6b645b;
+      --line: #d9d0c3;
+      --accent: #1f4d63;
+      --accent-soft: #e4eef2;
+      --pivot: #b45309;
+      --pivot-soft: #f3e0c8;
+      --enter: #155e75;
+      --leave: #9a3412;
+      --ok: #3f6212;
+      --ok-soft: #e8efd8;
+      --bad: #9f1239;
+      --shadow: 0 0 0 1px var(--line);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", "Iosevka", "Cambria", Georgia, serif;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 56px 1fr 44px;
+      height: 100%;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+    header .brand { font-weight: 650; letter-spacing: 0.01em; }
+    header .brand span { color: var(--muted); font-weight: 500; }
+    .phase {
+      font-size: 13px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .progress {
+      flex: 1;
+      height: 4px;
+      background: var(--line);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress > i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      width: 0;
+    }
+    .counter { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; min-width: 52px; text-align: right; }
+
+    .nav-btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      height: 32px;
+      min-width: 32px;
+      padding: 0 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+    }
+    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-btn:disabled { opacity: 0.35; cursor: default; }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 0;
+    }
+
+    .toc {
+      border-right: 1px solid var(--line);
+      padding: 14px 10px;
+      overflow: auto;
+      background: #f7f3eb;
+    }
+    .toc h2 {
+      margin: 0 8px 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .toc button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 13px;
+      padding: 7px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .toc button.active {
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+    .toc button .n {
+      display: inline-block;
+      width: 18px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    main {
+      overflow: auto;
+      padding: 28px 36px 40px;
+    }
+    .slide { max-width: 1140px; }
+    .slide.wide { max-width: 860px; }
+    .slide.wide h1 { font-size: 22px; }
+    .slide.wide .lead { margin-bottom: 12px; font-size: 15px; }
+    .stage.wide-slide { grid-template-columns: 200px 1fr; }
+    .tbl-cap {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 650;
+      margin: 0 0 8px;
+    }
+    .rb-chain {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      max-width: 820px;
+    }
+    .why { font-size: 15px; line-height: 1.5; }
+    .why p { margin: 8px 0; }
+    .why .eq { font-size: 17px; }
+    .why .k { font-weight: 650; }
+    .why .old2 {
+      font-family: "Cambria Math", "Times New Roman", serif;
+      font-size: 17px;
+      line-height: 1.7;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 8px 0;
+    }
+    .mk { padding: 0 3px; border-radius: 3px; font-weight: 650; }
+    .mk.p { background: #e8c48a; }
+    .mk.n { background: #f6e6d4; }
+    .mk.t { background: #dbeaf0; }
+    .mk.q { background: #e8efd8; }
+    .rb-ref {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .rb-ref table.sx th, .rb-ref table.sx td {
+      padding: 4px 7px;
+      font-size: 14px;
+      min-width: 36px;
+    }
+    .pocket {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 10px 0 0;
+    }
+    .pocket summary {
+      cursor: pointer;
+      padding: 8px 12px;
+      list-style: none;
+      display: block;
+    }
+    .pocket summary::-webkit-details-marker { display: none; }
+    .pocket-title::before {
+      content: "▸ ";
+      color: var(--accent);
+    }
+    .pocket[open] .pocket-title::before { content: "▾ "; }
+    .pocket-title { font-weight: 650; }
+    .pocket-body { padding: 4px 12px 12px; border-top: 1px solid var(--line); }
+    .rb-block {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .rb-block.calc {
+      border-left: 4px solid var(--accent);
+      background: #f7f3eb;
+    }
+    .rb-block.fresh {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+    .rb-block h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 650;
+    }
+    .rb-down {
+      text-align: center;
+      color: var(--accent);
+      font-size: 20px;
+      line-height: 1;
+      padding: 6px 0;
+      font-weight: 650;
+    }
+    .rb-calc-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .rect.big b {
+      min-width: 44px;
+      height: 38px;
+      font-size: 18px;
+    }
+    .rect-key { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+    .rect-block .eq { font-size: 16px; line-height: 1.65; overflow-wrap: break-word; }
+    td.src, th.src { background: var(--accent-soft) !important; outline: 2px solid var(--enter); outline-offset: -2px; }
+    .rb-chain table.sx th, .rb-chain table.sx td {
+      padding: 5px 8px;
+      font-size: 15px;
+      min-width: 40px;
+    }
+    @media (max-width: 800px) {
+      .rb-calc-grid { grid-template-columns: 1fr; }
+    }
+    .aux-split {
+      display: grid;
+      grid-template-columns: 1fr minmax(360px, 460px);
+      gap: 18px;
+      align-items: start;
+      margin-top: 16px;
+    }
+    .schema {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin-top: 8px;
+      background: var(--paper);
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr 28px 1fr 28px 1fr 28px 1fr;
+      gap: 8px;
+      align-items: stretch;
+      margin: 4px 0 8px;
+    }
+    .flow .box {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .flow .box b { display: block; margin-bottom: 4px; }
+    .flow .arr {
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-size: 22px;
+      font-weight: 650;
+    }
+    @media (max-width: 1100px) {
+      .flow { grid-template-columns: 1fr; }
+      .flow .arr { transform: rotate(90deg); padding: 0; height: 20px; }
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      padding: 8px 10px;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 72px;
+    }
+    .chip .k { display: block; font-size: 12px; color: var(--muted); }
+    .chip .v { display: block; font-size: 20px; font-weight: 650; margin-top: 2px; }
+    .chip.pick { background: var(--pivot-soft); border-color: var(--pivot); }
+    .chip.skip { opacity: 0.55; }
+    .race { margin-top: 8px; }
+    .race-row { display: grid; grid-template-columns: 70px 1fr 70px; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+    .race-bar { height: 10px; background: #ece6db; border-radius: 99px; overflow: hidden; }
+    .race-bar > i { display: block; height: 100%; background: var(--accent); }
+    .race-row.win .race-bar > i { background: var(--pivot); }
+    .race-row.win { font-weight: 650; }
+    .swap {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .swap .box { background: #f7f3eb; border-radius: 8px; padding: 10px 12px; }
+    .swap .arrow { font-size: 22px; color: var(--accent); }
+    .hl { background: var(--pivot-soft); padding: 0 3px; border-radius: 3px; }
+    .dim { color: #a39a90; }
+    .mini-wrap { overflow: auto; }
+    table.sx.tiny th, table.sx.tiny td { padding: 5px 7px; font-size: 14px; min-width: 36px; }
+    .rect {
+      display: inline-grid;
+      grid-template-columns: auto auto auto;
+      gap: 6px 10px;
+      align-items: center;
+      font-family: "Cambria Math", "Times New Roman", serif;
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    .rect b {
+      display: grid;
+      place-items: center;
+      min-width: 36px;
+      height: 32px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .rect b.p { background: #e8c48a; font-weight: 700; }
+    .rect b.n { background: #f6e6d4; }
+    .rect b.t { background: #dbeaf0; }
+    .rect b.q { background: var(--ok-soft); font-weight: 700; }
+    td.fresh, th.fresh { background: var(--ok-soft) !important; }
+    td.now { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 700; }
+    .rebuild-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--bg);
+      padding: 4px 0 10px;
+      margin: 0 0 8px;
+    }
+    .rebuild-nav .cnt { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+    .rebuild-nav .hint { font-size: 13px; color: var(--muted); }
+    @media (max-width: 1200px) {
+      .aux-split { grid-template-columns: 1fr; }
+    }
+    .slide h1 {
+      font-size: 28px;
+      font-weight: 650;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .lead { color: var(--muted); font-size: 16px; margin: 0 0 22px; line-height: 1.45; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .eq {
+      font-family: "Cambria Math", "Times New Roman", serif;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+    .eq .sys { margin: 6px 0 0 8px; }
+    .note { font-size: 14px; color: var(--muted); line-height: 1.5; margin-top: 10px; }
+    .tag {
+      display: inline-block;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      margin-right: 6px;
+    }
+    .tag.warn { background: var(--pivot-soft); color: var(--pivot); }
+    .tag.ok { background: var(--ok-soft); color: var(--ok); }
+
+    .steps { margin: 0; padding: 0; list-style: none; }
+    .steps li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    .steps .num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 13px; font-weight: 650;
+    }
+
+    table.sx {
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+      background: var(--paper);
+    }
+    table.sx th, table.sx td {
+      border: 1px solid var(--line);
+      padding: 7px 10px;
+      text-align: center;
+      min-width: 52px;
+    }
+    table.sx th { background: #f3eee4; font-weight: 650; font-size: 14px; }
+    table.sx td.rowh { background: #f3eee4; font-weight: 650; }
+    table.sx td.clickable { cursor: pointer; }
+    table.sx td.clickable:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+    table.sx .col-enter { background: #dbeaf0; }
+    table.sx .row-leave { background: #f6e6d4; }
+    table.sx .pivot { background: #e8c48a; font-weight: 750; color: var(--leave); }
+    table.sx .gone { color: #b0a89c; text-decoration: line-through; }
+    table.sx .obj { background: #eef3e3; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+    .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+    footer {
+      border-top: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--paper);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    kbd {
+      font-family: inherit;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      background: #f7f3eb;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .geom { width: 100%; height: 340px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+    .slide.wide.geom-slide { max-width: 1180px; }
+    .slide.wide.geom-slide h1 { font-size: 24px; }
+    .geom-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+      gap: 18px;
+      align-items: start;
+    }
+    .geom-fig {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .geom-fig .geom {
+      height: auto;
+      display: block;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .geom-legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 2px 14px 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .geom-legend .sw { border: 1px solid rgba(28,25,22,0.12); }
+    .geom-story { display: flex; flex-direction: column; gap: 10px; }
+    .geom-story .card { padding: 14px 16px; }
+    .geom-story .card h3 { margin-bottom: 8px; }
+    .geom-story .card p { margin: 0 0 8px; }
+    .geom-story .card p:last-child { margin-bottom: 0; }
+    .geom-story .card.start { border-left: 3px solid #1c1916; }
+    .geom-story .card.best { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+    .geom-story .eq { font-size: 16px; margin: 6px 0; }
+    @media (max-width: 1100px) {
+      .geom-layout { grid-template-columns: 1fr; }
+    }
+    .slide.wide.hw-slide { max-width: 1180px; }
+    .slide.wide.hw-slide h1 { font-size: 24px; }
+    .hw-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .hw-layout .card p { margin: 0 0 8px; }
+    .hw-layout .card p:last-child { margin-bottom: 0; }
+    .hw-layout .card + .card { margin-top: 10px; }
+    .ban {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 0;
+    }
+    .ban span {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      background: #f8e8ea;
+      color: var(--bad);
+      border: 1px solid #e8c5cc;
+    }
+    .codebox {
+      font-family: Consolas, "Segoe UI Mono", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      background: #f7f3eb;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 8px 0 0;
+    }
+    @media (max-width: 1100px) {
+      .hw-layout { grid-template-columns: 1fr; }
+    }
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 10px 14px;
+      background: var(--accent-soft);
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    .callout.warn { border-color: var(--pivot); background: var(--pivot-soft); }
+    .callout.ok { border-color: var(--ok); background: var(--ok-soft); }
+    .frac { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; vertical-align: middle; font-size: 0.85em; }
+    .frac span { padding: 0 3px; }
+    .frac .num { border-bottom: 1px solid currentColor; }
+    .bigstat { font-size: 26px; font-weight: 650; margin: 8px 0 4px; }
+    .muted { color: var(--muted); }
+
+    .count-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .count-row:last-child { border-bottom: 0; }
+    .pm {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pm button {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 6px;
+      font: inherit;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .pm button:hover { border-color: var(--accent); color: var(--accent); }
+    .pm .val { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; font-size: 20px; }
+    .meter {
+      height: 10px;
+      background: #ece6db;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .meter > i { display: block; height: 100%; width: 0; background: var(--bad); }
+    .meter.ok > i { background: var(--ok); }
+    .live-eq { font-size: 22px; margin: 8px 0 0; }
+    .links { list-style: none; margin: 0; padding: 0; }
+    .links li { margin: 0 0 8px; font-size: 14px; line-height: 1.4; }
+    .links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .links a:hover { border-bottom-color: var(--accent); }
+    .problem {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 22px 26px 20px;
+    }
+    .problem .given {
+      font-size: 16px;
+      line-height: 1.55;
+      margin: 0 0 16px;
+    }
+    .problem .label {
+      display: block;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+    .problem .sys-block {
+      margin: 4px 0 0 12px;
+    }
+    .cond {
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .cond:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+    .nv {
+      background: var(--pivot-soft);
+      color: var(--leave);
+      padding: 0 4px;
+      border-radius: 3px;
+      font-weight: 650;
+    }
+    .nv.art {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .imat {
+      display: inline-grid;
+      grid-template-columns: repeat(3, 28px);
+      gap: 0;
+      font-variant-numeric: tabular-nums;
+      font-family: "Cambria Math", "Times New Roman", serif;
+      font-size: 16px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .imat span {
+      display: grid;
+      place-items: center;
+      height: 28px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .imat span:nth-child(3n) { border-right: 0; }
+    .imat span:nth-child(n+7) { border-bottom: 0; }
+    .imat .one { background: var(--ok-soft); font-weight: 700; }
+    .imat .bad { background: #f3d6dc; font-weight: 700; }
+    .seg {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+    .seg button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .seg button.on {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .verdict {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+    }
+    .verdict:last-child { border-bottom: 0; }
+    .verdict .ok { color: var(--ok); font-weight: 650; }
+    .verdict .bad { color: var(--bad); font-weight: 650; }
+    .colbox {
+      display: inline-grid;
+      grid-template-columns: 36px 36px;
+      border: 1px solid var(--line);
+      font-variant-numeric: tabular-nums;
+      font-family: "Cambria Math", "Times New Roman", serif;
+    }
+    .colbox b, .colbox i {
+      display: grid;
+      place-items: center;
+      height: 28px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-style: normal;
+      font-weight: 600;
+    }
+    .colbox b:nth-child(2n), .colbox i:nth-child(2n) { border-right: 0; }
+    .colbox b:nth-child(n+5), .colbox i:nth-child(n+5) { border-bottom: 0; }
+    .colbox .h { background: #f3eee4; font-size: 12px; }
+
+    @media (max-width: 1100px) {
+      .stage { grid-template-columns: 180px 1fr 240px; }
+      main { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">Симплекс-метод <span>· практика</span></div>
+      <div class="phase" id="phase">Постановка</div>
+      <div class="progress"><i id="bar"></i></div>
+      <div class="counter" id="counter">1 / 1</div>
+      <button class="nav-btn" id="prev" type="button">←</button>
+      <button class="nav-btn" id="next" type="button">→</button>
+    </header>
+    <div class="stage">
+      <nav class="toc" id="toc"></nav>
+      <main id="main"></main>
+    </div>
+    <footer>
+      <div>Пример из конспекта: откуда система, затем таблицы до ответа</div>
+      <div><kbd>←</kbd> <kbd>→</kbd> шаг · <kbd>F11</kbd> на проектор</div>
+    </footer>
+  </div>
+
+<script>
+(function () {
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a || 1; }
+  function F(n, d = 1) {
+    if (n === 0) return { n: 0, d: 1 };
+    if (d < 0) { n = -n; d = -d; }
+    const g = gcd(n, d);
+    return { n: n / g, d: d / g };
+  }
+  function add(a, b) { return F(a.n * b.d + b.n * a.d, a.d * b.d); }
+  function sub(a, b) { return F(a.n * b.d - b.n * a.d, a.d * b.d); }
+  function mul(a, b) { return F(a.n * b.n, a.d * b.d); }
+  function div(a, b) { return F(a.n * b.d, a.d * b.n); }
+  function neg(a) { return F(-a.n, a.d); }
+  function cmp(a, b) { return a.n * b.d - b.n * a.d; }
+  function isZero(a) { return a.n === 0; }
+  function htmlF(a) {
+    if (a.d === 1) return String(a.n).replace("-", "−");
+    const sign = a.n < 0 ? "−" : "";
+    return sign + "<span class='frac'><span class='num'>" + Math.abs(a.n) + "</span><span>" + a.d + "</span></span>";
+  }
+  function textF(a) {
+    if (a.d === 1) return String(a.n).replace("-", "−");
+    return (a.n < 0 ? "−" : "") + Math.abs(a.n) + "/" + a.d;
+  }
+  function x(i) { return "x<sub>" + i + "</sub>"; }
+
+  function tableauHTML(t, opt) {
+    opt = opt || {};
+    const { cols, rows, A, b, c, Q, pivot, dropCols, hideDrop, inspect } = t;
+    const pc = pivot ? pivot.col : -1;
+    const pr = pivot ? pivot.row : -1;
+    let h = "<table class='sx'><thead><tr><th></th>";
+    cols.forEach((j, cj) => {
+      if (hideDrop && dropCols && dropCols.has(cj)) return;
+      const gone = dropCols && dropCols.has(cj) ? " gone" : "";
+      const ent = cj === pc ? " col-enter" : "";
+      h += "<th class='" + ent + gone + "'>" + x(j) + "</th>";
+    });
+    h += "<th>b</th></tr></thead><tbody>";
+    rows.forEach((i, ri) => {
+      const leave = ri === pr ? " row-leave" : "";
+      h += "<tr><td class='rowh " + leave + "'>" + x(i) + "</td>";
+      cols.forEach((j, cj) => {
+        if (hideDrop && dropCols && dropCols.has(cj)) return;
+        const gone = dropCols && dropCols.has(cj) ? " gone" : "";
+        const ent = cj === pc ? " col-enter" : "";
+        const pv = (ri === pr && cj === pc) ? " pivot" : "";
+        const key = ri + "," + cj;
+        h += "<td class='clickable" + leave + ent + pv + gone + "' data-cell='" + key + "'>" + htmlF(A[ri][cj]) + "</td>";
+      });
+      h += "<td class='clickable" + leave + "' data-cell='" + ri + ",b'>" + htmlF(b[ri]) + "</td></tr>";
+    });
+    h += "<tr><td class='rowh obj'>c</td>";
+    cols.forEach((j, cj) => {
+      if (hideDrop && dropCols && dropCols.has(cj)) return;
+      const gone = dropCols && dropCols.has(cj) ? " gone" : "";
+      const ent = cj === pc ? " col-enter" : "";
+      h += "<td class='clickable obj" + ent + gone + "' data-cell='c," + cj + "'>" + htmlF(c[cj]) + "</td>";
+    });
+    h += "<td class='clickable obj' data-cell='Q'>" + htmlF(Q) + "</td></tr>";
+    h += "</tbody></table>";
+    if (opt.legend !== false) {
+      h += "<div class='legend'>";
+      if (pc >= 0) h += "<span><i class='sw' style='background:#dbeaf0'></i>разрешающий столбец</span>";
+      if (pr >= 0) h += "<span><i class='sw' style='background:#f6e6d4'></i>разрешающая строка</span>";
+      if (pc >= 0 && pr >= 0) h += "<span><i class='sw' style='background:#e8c48a'></i>разрешающий элемент</span>";
+      h += "<span>нижний правый угол: −Q</span></div>";
+    }
+    return h;
+  }
+
+  /* ===== Exact tableaus from the lecture example ===== */
+
+  const T0 = {
+    cols: [1, 2, 3, 4, 5],
+    rows: [6, 7, 8],
+    A: [
+      [F(3), F(0), F(2), F(-1), F(0)],
+      [F(1), F(-1), F(1), F(0), F(0)],
+      [F(1), F(0), F(1), F(0), F(1)]
+    ],
+    b: [F(12), F(5), F(6)],
+    c: [F(-5), F(1), F(-4), F(1), F(-1)],
+    Q: F(-23),
+    pivot: { row: 0, col: 0 },
+    explain: {
+      "0,0": "Разрешающий элемент a<sub>61</sub> = 3. Столбец x<sub>1</sub>: самый отрицательный c<sub>1</sub> = −5. Строка x<sub>6</sub>: min{12/3, 5/1, 6/1} = 4."
+    }
+  };
+
+  const T0start = {
+    cols: [1, 2, 3, 4, 5],
+    rows: [6, 7, 8],
+    A: [
+      [F(3), F(0), F(2), F(-1), F(0)],
+      [F(1), F(-1), F(1), F(0), F(0)],
+      [F(1), F(0), F(1), F(0), F(1)]
+    ],
+    b: [F(12), F(5), F(6)],
+    c: [F(-5), F(1), F(-4), F(1), F(-1)],
+    Q: F(-23),
+    explain: {
+      "c,0": "Нижняя строка из W<sub>a</sub>: коэффициент при x<sub>1</sub> это −3−1−1 = −5.",
+      "c,1": "Нижняя строка из W<sub>a</sub>: x<sub>2</sub> только во второй строке, коэффициент +1.",
+      "c,2": "Нижняя строка из W<sub>a</sub>: коэффициент при x<sub>3</sub> это −2−1−1 = −4.",
+      "c,3": "Нижняя строка из W<sub>a</sub>: x<sub>4</sub> только в первой строке, коэффициент +1.",
+      "c,4": "Нижняя строка из W<sub>a</sub>: x<sub>5</sub> только в третьей строке, коэффициент −1.",
+      "Q": "Угол −Q. Q = 12+5+6 = 23, поэтому здесь −23. При свободных = 0 имеем W<sub>a</sub> = 23.",
+      "0,b": "Правая часть первой строки: x<sub>6</sub> = 12, если свободные ноль.",
+      "1,b": "Правая часть второй строки: x<sub>7</sub> = 5, если свободные ноль.",
+      "2,b": "Правая часть третьей строки: x<sub>8</sub> = 6, если свободные ноль."
+    }
+  };
+
+  const T1full = {
+    cols: [6, 2, 3, 4, 5],
+    rows: [1, 7, 8],
+    A: [
+      [F(1, 3), F(0), F(2, 3), F(-1, 3), F(0)],
+      [F(-1, 3), F(-1), F(1, 3), F(1, 3), F(0)],
+      [F(-1, 3), F(0), F(1, 3), F(1, 3), F(1)]
+    ],
+    b: [F(4), F(1), F(2)],
+    c: [F(5, 3), F(1), F(-2, 3), F(-2, 3), F(-1)],
+    Q: F(-3),
+    dropCols: new Set([0]),
+    pivot: { row: 1, col: 2 },
+    explain: {
+      "0,0": "Новый разрешающий элемент: 1 / 3.",
+      "0,2": "Элемент разрешающей строки: 2 / 3.",
+      "0,3": "Элемент разрешающей строки: −1 / 3.",
+      "0,b": "b̂<sub>1</sub> = 12 / 3 = 4.",
+      "1,0": "Элемент разрешающего столбца: −1 / 3.",
+      "2,0": "Элемент разрешающего столбца: −1 / 3.",
+      "c,0": "ĉ<sub>6</sub> = −(−5) / 3 = 5/3. Столбец вспомогательной x<sub>6</sub> вычёркиваем.",
+      "1,2": "â<sub>73</sub> = 1 − 2·1 / 3 = 1/3.",
+      "1,3": "â<sub>74</sub> = 0 − (−1)·1 / 3 = 1/3.",
+      "1,b": "b̂<sub>7</sub> = 5 − 12·1 / 3 = 1.",
+      "2,2": "â<sub>83</sub> = 1 − 2·1 / 3 = 1/3.",
+      "2,3": "â<sub>84</sub> = 0 − (−1)·1 / 3 = 1/3. Нулевые элементы на разрешающей строке столбцы не портят.",
+      "2,b": "b̂<sub>8</sub> = 6 − 12·1 / 3 = 2.",
+      "c,2": "ĉ<sub>3</sub> = −4 − 2·(−5) / 3 = −2/3.",
+      "c,3": "ĉ<sub>4</sub> = 1 − (−1)·(−5) / 3 = −2/3.",
+      "Q": "−Q̂ = −23 − 12·(−5) / 3 = −3, то есть Q = 3 = W<sub>a</sub> в текущей вершине."
+    }
+  };
+
+  const T1 = {
+    cols: [2, 3, 4, 5],
+    rows: [1, 7, 8],
+    A: [
+      [F(0), F(2, 3), F(-1, 3), F(0)],
+      [F(-1), F(1, 3), F(1, 3), F(0)],
+      [F(0), F(1, 3), F(1, 3), F(1)]
+    ],
+    b: [F(4), F(1), F(2)],
+    c: [F(1), F(-2, 3), F(-2, 3), F(-1)],
+    Q: F(-3),
+    pivot: { row: 1, col: 1 }
+  };
+
+  const T2full = {
+    cols: [2, 7, 4, 5],
+    rows: [1, 3, 8],
+    A: [
+      [F(2), F(-2), F(-1), F(0)],
+      [F(-3), F(3), F(1), F(0)],
+      [F(1), F(-1), F(0), F(1)]
+    ],
+    b: [F(2), F(3), F(1)],
+    c: [F(-1), F(2), F(0), F(-1)],
+    Q: F(-1),
+    dropCols: new Set([1]),
+    pivot: { row: 2, col: 3 },
+    explain: {
+      "1,1": "Новый разрешающий: 1 / (1/3) = 3.",
+      "1,0": "Разрешающая строка: −1 / (1/3) = −3.",
+      "1,2": "Разрешающая строка: (1/3) / (1/3) = 1.",
+      "1,b": "b̂<sub>3</sub> = 1 / (1/3) = 3.",
+      "0,0": "â<sub>12</sub> = 0 − (2/3)·(−1) / (1/3) = 2.",
+      "0,2": "â<sub>14</sub> = −1/3 − (2/3)·(1/3) / (1/3) = −1.",
+      "0,b": "b̂<sub>1</sub> = 4 − (2/3)·1 / (1/3) = 2.",
+      "2,0": "â<sub>82</sub> = 0 − (1/3)·(−1) / (1/3) = 1.",
+      "2,2": "â<sub>84</sub> = 1/3 − (1/3)·(1/3) / (1/3) = 0.",
+      "2,b": "b̂<sub>8</sub> = 2 − (1/3)·1 / (1/3) = 1.",
+      "c,0": "ĉ<sub>2</sub> = 1 − (−2/3)·(−1) / (1/3) = −1.",
+      "c,2": "ĉ<sub>4</sub> = −2/3 − (−2/3)·(1/3) / (1/3) = 0.",
+      "c,3": "ĉ<sub>5</sub> остался −1.",
+      "Q": "−Q̂ = −3 − 1·(−2/3) / (1/3) = −1. W<sub>a</sub> = 1, ещё не ноль."
+    }
+  };
+
+  const T2 = {
+    cols: [2, 4, 5],
+    rows: [1, 3, 8],
+    A: [
+      [F(2), F(-1), F(0)],
+      [F(-3), F(1), F(0)],
+      [F(1), F(0), F(1)]
+    ],
+    b: [F(2), F(3), F(1)],
+    c: [F(-1), F(0), F(-1)],
+    Q: F(-1),
+    pivot: { row: 2, col: 2 }
+  };
+
+  const T3 = {
+    cols: [2, 4],
+    rows: [1, 3, 5],
+    A: [
+      [F(2), F(-1)],
+      [F(-3), F(1)],
+      [F(1), F(0)]
+    ],
+    b: [F(2), F(3), F(1)],
+    c: [F(0), F(0)],
+    Q: F(0)
+  };
+
+  const Tmain0 = {
+    cols: [2, 4],
+    rows: [1, 3, 5],
+    A: [
+      [F(2), F(-1)],
+      [F(-3), F(1)],
+      [F(1), F(0)]
+    ],
+    b: [F(2), F(3), F(1)],
+    c: [F(-6), F(3)],
+    Q: F(-1),
+    pivot: { row: 2, col: 0 }
+  };
+
+  const Tmain1 = {
+    cols: [5, 4],
+    rows: [1, 3, 2],
+    A: [
+      [F(-2), F(-1)],
+      [F(3), F(1)],
+      [F(1), F(0)]
+    ],
+    b: [F(0), F(6), F(1)],
+    c: [F(6), F(3)],
+    Q: F(5)
+  };
+
+  const slides = [
+    {
+      id: "plan",
+      phase: "План практики",
+      toc: "План на пару",
+      title: "Сегодня считаем один пример до конца",
+      lead: "Сначала откуда берётся система, потом доводим её симплексом до ответа. Лекцию можно глянуть позже по ссылкам.",
+      html: `
+        <ol class="steps">
+          <li><span class="num">1</span><div>Постановка задачи и откуда условия</div></li>
+          <li><span class="num">2</span><div>Канон, вспомогательная задача, таблицы</div></li>
+          <li><span class="num">3</span><div>Ответ, оговорки и практическое задание</div></li>
+        </ol>
+        <div class="card" style="margin-top:18px">
+          <h3>Лекция и материалы</h3>
+          <ul class="links">
+            <li><a href="https://disk.yandex.ru/i/9H-eR-MYP5Hq_w" target="_blank" rel="noopener">Видео лекции №1</a> (с прошлых лет)</li>
+            <li><a href="https://disk.yandex.ru/i/ZTc6itva3jwC2Q" target="_blank" rel="noopener">Видео лекции №2</a> (до 1 ч 10 мин)</li>
+            <li><a href="https://disk.yandex.ru/i/lKlI8JB4qB2cAg" target="_blank" rel="noopener">Ещё одно видео лекции</a> (после 1:23:25)</li>
+            <li><a href="https://disk.yandex.ru/i/Z5xHNCu305bCng" target="_blank" rel="noopener">Конспект лекции</a></li>
+            <li><a href="https://disk.yandex.ru/i/kqviFSpfWhj1VA" target="_blank" rel="noopener">Записи на планшете по ЗЛП</a></li>
+          </ul>
+        </div>
+      `
+    },
+    {
+      id: "life",
+      phase: "Постановка",
+      toc: "Постановка задачи",
+      title: "Постановка задачи",
+      lead: "Пекарня планирует выпуск на смену. Нужно выбрать объёмы так, чтобы своих денег вложить как можно меньше.",
+      html: `
+        <div class="problem">
+          <p class="given">Выпускаются три изделия: x<sub>1</sub> тортов, x<sub>2</sub> пирожных, x<sub>3</sub> пирогов. На торт уходит 2 своих денег, на пирожное 1. Пирог оплачивает кофейня, в свои деньги его не включаем, поэтому у пирога коэффициент −1.</p>
+          <span class="label">Найти</span>
+          <p class="given" style="margin-bottom:14px">x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> ≥ 0, при которых своих денег уходит минимум и выполнены условия смены.</p>
+          <span class="label">Цель</span>
+          <p class="eq">W(x) = 2x<sub>1</sub> + x<sub>2</sub> − x<sub>3</sub> → min</p>
+          <span class="label" style="margin-top:16px">Ограничения</span>
+          <div class="eq sys-block">
+            3x<sub>1</sub> + 2x<sub>3</sub> ≥ 12<br>
+            x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5<br>
+            x<sub>1</sub> + x<sub>3</sub> ≤ 6<br>
+            x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> ≥ 0
+          </div>
+        </div>
+      `
+    },
+    {
+      id: "conds",
+      phase: "Постановка",
+      toc: "Откуда условия",
+      title: "Откуда взялись условия",
+      lead: "Три разных знака из одной смены. Все сразу, без разнесения по слайдам.",
+      html: `
+        <div class="card">
+          <div class="cond">
+            <p class="eq">3x<sub>1</sub> + 2x<sub>3</sub> ≥ 12</p>
+            <p class="note">Крем для кофейни. На торт 3 банки, на пирог 2. Меньше 12 банок не принимают. Пирожные этот крем не берут, поэтому x<sub>2</sub> в сумме нет.</p>
+            <div class="grid-2" style="margin-top:10px">
+              <div>
+                <div class="count-row">
+                  <span>торты x<sub>1</sub></span>
+                  <span class="pm">
+                    <button type="button" data-cream="-1" data-var="x1">−</button>
+                    <span class="val" id="cream-x1">0</span>
+                    <button type="button" data-cream="1" data-var="x1">+</button>
+                  </span>
+                </div>
+                <div class="count-row">
+                  <span>пироги x<sub>3</sub></span>
+                  <span class="pm">
+                    <button type="button" data-cream="-1" data-var="x3">−</button>
+                    <span class="val" id="cream-x3">0</span>
+                    <button type="button" data-cream="1" data-var="x3">+</button>
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p class="live-eq" id="cream-eq" style="margin-top:8px">3·0 + 2·0 = 0</p>
+                <div class="meter" id="cream-meter"><i></i></div>
+                <p class="note" id="cream-msg">Пока мало. Кофейня заказ не примет.</p>
+              </div>
+            </div>
+          </div>
+          <div class="cond">
+            <p class="eq">x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5</p>
+            <p class="note">Комплектация заказа: больших изделий (торты + пироги) должно быть ровно на 5 больше, чем пирожных. Иначе набор не сходится.</p>
+          </div>
+          <div class="cond">
+            <p class="eq">x<sub>1</sub> + x<sub>3</sub> ≤ 6</p>
+            <p class="note">Торт и пирог занимают большой противень. За смену максимум 6 таких. Пирожные пекутся отдельно, в сумму не входят.</p>
+          </div>
+        </div>
+        <p class="note" style="margin-top:12px">Есть «≥» и «≤», готового базиса нет. Дальше приводим к канону и считаем симплексом.</p>
+      `,
+      onEnter: bindCreamWidget
+    },
+    {
+      id: "kzlp",
+      phase: "К ЗЛП",
+      toc: "К каноническому виду",
+      title: "Избавляемся от неравенств",
+      lead: "КЗЛП (каноническая задача линейного программирования): только равенства, все переменные ≥ 0. Новые x<sub>4</sub> и x<sub>5</sub> убирают знаки «≥» и «≤».",
+      html: `
+        <div class="seg" id="canon-seg">
+          <button type="button" data-canon="signs" class="on">1. Знаки x<sub>4</sub> и x<sub>5</sub></button>
+          <button type="button" data-canon="zero">2. Пробуем вершину</button>
+          <button type="button" data-canon="unit">3. Чего не хватает</button>
+        </div>
+        <div data-canon-panel="signs">
+          <div class="grid-2">
+            <div class="card">
+              <h3>Было</h3>
+              <div class="eq">
+                3x<sub>1</sub> + 2x<sub>3</sub> ≥ 12<br>
+                x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5<br>
+                x<sub>1</sub> + x<sub>3</sub> ≤ 6
+              </div>
+            </div>
+            <div class="card">
+              <h3>Стало КЗЛП</h3>
+              <div class="eq">
+                3x<sub>1</sub> + 2x<sub>3</sub> <span class="nv">− x<sub>4</sub></span> = 12<br>
+                x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5<br>
+                x<sub>1</sub> + x<sub>3</sub> <span class="nv">+ x<sub>5</sub></span> = 6<br>
+                x<sub>1</sub>, …, x<sub>5</sub> ≥ 0
+              </div>
+              <p class="note">В цели новых переменных нет: c<sub>4</sub> = c<sub>5</sub> = 0. W не меняется.</p>
+            </div>
+          </div>
+          <div class="grid-2" style="margin-top:16px">
+            <div class="card">
+              <h3>Знак минус у x<sub>4</sub></h3>
+              <p class="eq">«≥» → вычитаем избыточную</p>
+              <p class="note">Крема уже не меньше 12. <span class="nv">x<sub>4</sub></span> это сколько банок сверху. Их надо вычесть, иначе равенство не сойдётся. Сама x<sub>4</sub> ≥ 0. Если испекли ровно минимум, x<sub>4</sub> = 0.</p>
+            </div>
+            <div class="card">
+              <h3>Знак плюс у x<sub>5</sub></h3>
+              <p class="eq">«≤» → прибавляем остаток</p>
+              <p class="note">Духовка не больше 6 противней. <span class="nv">x<sub>5</sub></span> это сколько противней свободны. Их прибавляем до равенства. Сама x<sub>5</sub> ≥ 0. Если духовка забита, x<sub>5</sub> = 0.</p>
+            </div>
+          </div>
+        </div>
+        <div data-canon-panel="zero" hidden>
+          <div class="card">
+            <h3>Стартовая вершина: изделия в ноль</h3>
+            <p class="note" style="margin-top:0">Симплекс начинает с вершины. Самый простой ход: положить исходные x<sub>1</sub>=x<sub>2</sub>=x<sub>3</sub>=0 и прочитать новые переменные из равенств. Нажмите кнопку и смотрите, что получается.</p>
+            <div class="seg" style="margin:12px 0 8px">
+              <button type="button" id="canon-zero-btn">Поставить x<sub>1</sub>=x<sub>2</sub>=x<sub>3</sub>=0</button>
+              <button type="button" id="canon-back-btn">Вернуть изделия</button>
+            </div>
+            <div class="eq" id="canon-eqs">
+              3x<sub>1</sub> + 2x<sub>3</sub> <span class="nv">− x<sub>4</sub></span> = 12<br>
+              x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5<br>
+              x<sub>1</sub> + x<sub>3</sub> <span class="nv">+ x<sub>5</sub></span> = 6
+            </div>
+            <div id="canon-verdicts" hidden>
+              <div class="verdict"><span><span class="nv">− x<sub>4</sub></span> = 12 → x<sub>4</sub> = −12</span><span class="bad">нельзя, переменная &lt; 0</span></div>
+              <div class="verdict"><span>0 = 5</span><span class="bad">противоречие, второго «хозяина» нет</span></div>
+              <div class="verdict"><span><span class="nv">x<sub>5</sub></span> = 6</span><span class="ok">так можно, тут как раз +1</span></div>
+            </div>
+          </div>
+          <div class="callout warn" style="margin-top:14px">Минус у x<sub>4</sub> и дырка во втором равенстве ломают старт. x<sub>5</sub> с плюсом уже годится, но одной такой переменной на три строки мало. Если бы это уже была ДКЗЛП, те же нули у свободных дали бы x<sub>баз</sub> = b ≥ 0, и старт был бы законный.</div>
+        </div>
+        <div data-canon-panel="unit" hidden>
+          <div class="card" style="margin-bottom:16px">
+            <h3>Откуда столбцы</h3>
+            <p class="note" style="margin-top:0">Та же КЗЛП. Коэффициент в столбце это просто множитель этой переменной в строке. Нет переменной в равенстве, пишем 0.</p>
+            <div class="eq" style="margin-top:10px">
+              3x<sub>1</sub> + 0x<sub>2</sub> + 2x<sub>3</sub> + <span class="nv">(-1)x<sub>4</sub></span> + <span class="nv">0x<sub>5</sub></span> = 12<br>
+              1x<sub>1</sub> − 1x<sub>2</sub> + 1x<sub>3</sub> + <span class="nv">0x<sub>4</sub></span> + <span class="nv">0x<sub>5</sub></span> = 5<br>
+              1x<sub>1</sub> + 0x<sub>2</sub> + 1x<sub>3</sub> + <span class="nv">0x<sub>4</sub></span> + <span class="nv">(+1)x<sub>5</sub></span> = 6
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Выписали x<sub>4</sub> и x<sub>5</sub></h3>
+              <div class="colbox" style="margin-top:4px">
+                <b class="h">x<sub>4</sub></b><b class="h">x<sub>5</sub></b>
+                <i class="bad">−1</i><i>0</i>
+                <i>0</i><i>0</i>
+                <i>0</i><i class="one">1</i>
+              </div>
+              <p class="note">Первая строка: у x<sub>4</sub> минус, у x<sub>5</sub> её нет. Вторая: обеих нет. Третья: x<sub>5</sub> с плюсом.</p>
+            </div>
+            <div class="card">
+              <h3>Что нужно для ДКЗЛП</h3>
+              <p class="note" style="margin-top:0">Единичная подматрица: в каждой строке своя переменная с +1, в остальных строках у неё нули. И правая часть b ≥ 0.</p>
+              <div class="imat" style="margin-top:10px">
+                <span class="one">1</span><span>0</span><span>0</span>
+                <span>0</span><span class="one">1</span><span>0</span>
+                <span>0</span><span>0</span><span class="one">1</span>
+              </div>
+              <p class="note">Тогда свободные в ноль, базис читаем справа. Таблицу можно писать.</p>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:14px">Сейчас единицы нет, это КЗЛП, но не ДКЗЛП. Её дадут искусственные x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub> на следующем шаге.</div>
+        </div>
+      `,
+      onEnter: bindCanonDemo
+    },
+    {
+      id: "aux",
+      phase: "Вспомогательная",
+      toc: "Вспомогательная задача",
+      title: "Искусственный базис",
+      lead: "В каждое равенство добавляем свою вспомогательную переменную. Их сумма становится новой целью. Получаем ДКЗЛП (допустимую каноническую задачу линейного программирования).",
+      html: `
+        <div class="card">
+          <h3>Вспомогательная задача</h3>
+          <div class="eq">
+            W<sub>a</sub> = <span class="nv art">x<sub>6</sub></span> + <span class="nv art">x<sub>7</sub></span> + <span class="nv art">x<sub>8</sub></span> → min
+            <div class="sys">
+              3x<sub>1</sub> + 2x<sub>3</sub> − x<sub>4</sub> + <span class="nv art">x<sub>6</sub></span> = 12<br>
+              x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> + <span class="nv art">x<sub>7</sub></span> = 5<br>
+              x<sub>1</sub> + x<sub>3</sub> + x<sub>5</sub> + <span class="nv art">x<sub>8</sub></span> = 6<br>
+              x<sub>1</sub>, …, x<sub>8</sub> ≥ 0
+            </div>
+          </div>
+          <p class="note">Новые <span class="nv art">x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub></span> искусственные. Их нет в исходной задаче. У каждой коэффициент <b>+1</b> в своей строке и 0 в остальных. Цель W<sub>a</sub> (вспомогательная): вытолкнуть их в ноль.</p>
+          <div class="seg" style="margin:12px 0 0">
+            <button type="button" id="aux-zero-btn">Поставить свободные в ноль</button>
+            <button type="button" id="aux-back-btn">Вернуть свободные</button>
+          </div>
+          <div class="eq" id="aux-read" hidden style="margin-top:10px">
+            x<sub>6</sub> = 12, &nbsp; x<sub>7</sub> = 5, &nbsp; x<sub>8</sub> = 6, &nbsp; все ≥ 0
+          </div>
+          <p class="note" id="aux-read-msg" hidden>Теперь читается. Единица с плюсом в каждой строке дала допустимую вершину. Можно писать таблицу.</p>
+        </div>
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>Теперь единица есть</h3>
+            <div class="imat" aria-hidden="true">
+              <span class="one">1</span><span>0</span><span>0</span>
+              <span>0</span><span class="one">1</span><span>0</span>
+              <span>0</span><span>0</span><span class="one">1</span>
+            </div>
+            <p class="eq" style="margin-top:10px">Базис: x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub></p>
+            <p class="eq">Свободные: x<sub>1</sub>, …, x<sub>5</sub></p>
+            <p class="note">Свободные в ноль: x<sub>6</sub>=12, x<sub>7</sub>=5, x<sub>8</sub>=6. Вершина видна сразу, таблицу писать можно.</p>
+          </div>
+          <div class="card">
+            <h3>Зачем выражать</h3>
+            <p class="note" style="margin-top:0">В таблице внизу нужны коэффициенты W<sub>a</sub> только при свободных. Базисные x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub> из цели выкидываем: подставляем их из равенств.</p>
+          </div>
+        </div>
+        <div class="aux-split">
+          <div class="card">
+            <h3>Цель через свободные</h3>
+            <p class="note" style="margin-top:0">Из каждого равенства оставляем базисную слева. Остальное переносим вправо и меняем знак.</p>
+            <p class="eq" style="font-size:16px">
+              x<sub>6</sub> + 3x<sub>1</sub> + 2x<sub>3</sub> − x<sub>4</sub> = 12 &nbsp; → &nbsp; x<sub>6</sub> = −3x<sub>1</sub> − 2x<sub>3</sub> + x<sub>4</sub> + 12<br>
+              x<sub>7</sub> + x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5 &nbsp; → &nbsp; x<sub>7</sub> = −x<sub>1</sub> + x<sub>2</sub> − x<sub>3</sub> + 5<br>
+              x<sub>8</sub> + x<sub>1</sub> + x<sub>3</sub> + x<sub>5</sub> = 6 &nbsp; → &nbsp; x<sub>8</sub> = −x<sub>1</sub> − x<sub>3</sub> − x<sub>5</sub> + 6
+            </p>
+            <p class="note">Теперь W<sub>a</sub> = x<sub>6</sub> + x<sub>7</sub> + x<sub>8</sub>. Складываем три правые части.</p>
+            <p class="eq" style="font-size:16px">
+              W<sub>a</sub> = (12+5+6) + (−3−1−1)x<sub>1</sub> + x<sub>2</sub> + (−2−1−1)x<sub>3</sub> + x<sub>4</sub> − x<sub>5</sub>
+            </p>
+            <p class="note">Свободные по столбцам: x<sub>1</sub> входит во все три строки (−3, −1, −1). x<sub>2</sub> только во вторую (+1). x<sub>3</sub> во все три (−2, −1, −1). x<sub>4</sub> только в первую (+1). x<sub>5</sub> только в третью (−1).</p>
+            <p class="eq">W<sub>a</sub> = 23 − 5x<sub>1</sub> + x<sub>2</sub> − 4x<sub>3</sub> + x<sub>4</sub> − x<sub>5</sub></p>
+            <p class="note">Это нижняя строка справа: c = (−5, 1, −4, 1, −1). Q = 23, в углу −Q = −23.</p>
+          </div>
+          <div class="card">
+            <h3>Начальная таблица</h3>
+            <p class="note" style="margin-top:0">Свободные сверху, базис слева. Низ это W<sub>a</sub>, угол это −Q.</p>
+            <div id="aux-table"></div>
+            <h3 style="margin-top:16px">Что это за угол</h3>
+            <p class="note" style="margin-top:0">Одна таблица = одна вершина многоугольника X. Свободные там ноль. Число Q в углу: значение цели в этой точке. Сейчас W<sub>a</sub> = 23. Шаг симплекса: переход по ребру в соседнюю вершину, где цель меньше.</p>
+            <svg class="schema" viewBox="0 0 360 250" aria-label="Вершины и шаг симплекса">
+              <polygon points="250,188 285,115 198,48 88,82 72,168 148,212" fill="#c5d6c0" fill-opacity="0.75" stroke="#3f5c3a" stroke-width="1.5"/>
+              <text x="155" y="138" font-size="18" fill="#3f5c3a">X</text>
+              <path d="M168 150 L118 175" stroke="#1f4d63" stroke-width="1.5" marker-end="url(#arr)"/>
+              <text x="108" y="162" font-size="11" fill="#1f4d63">W меньше</text>
+              <line x1="250" y1="188" x2="148" y2="212" stroke="#c45c26" stroke-width="3"/>
+              <circle cx="285" cy="115" r="4.5" fill="#1c1916"/>
+              <circle cx="198" cy="48" r="4.5" fill="#1c1916"/>
+              <circle cx="88" cy="82" r="4.5" fill="#1c1916"/>
+              <circle cx="72" cy="168" r="4.5" fill="#1c1916"/>
+              <circle cx="148" cy="212" r="5" fill="#1f4d63"/>
+              <circle cx="250" cy="188" r="7" fill="#c45c26"/>
+              <text x="258" y="208" font-size="12">мы здесь</text>
+              <text x="258" y="224" font-size="11" fill="#6b645b">Wa = 23 = Q</text>
+              <text x="88" y="236" font-size="11" fill="#1f4d63">сосед, цель меньше</text>
+              <defs>
+                <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L7,3 L0,6 Z" fill="#1f4d63"/>
+                </marker>
+              </defs>
+            </svg>
+          </div>
+        </div>
+      `,
+      onEnter: bindAuxZero
+    },
+    {
+      id: "rules",
+      phase: "Правила шага",
+      toc: "Правила одного шага",
+      title: "Что делаем на каждом шаге",
+      lead: "Один шаг на наших числах. Сначала столбец: кто входит. Потом строка: кто первым упрётся в ноль.",
+      html: `
+        <div class="seg" id="rules-seg">
+          <button type="button" data-rule="col" class="on">1. Кто входит</button>
+          <button type="button" data-rule="row">2. Кто выходит</button>
+          <button type="button" data-rule="swap">3. Обмен</button>
+        </div>
+        <div data-rule-panel="col">
+          <div class="card">
+            <h3>Шаг 1. Выбираем столбец: кто входит в базис</h3>
+            <p class="note" style="margin-top:0">Это направление. Для минимума берём свободную с самым отрицательным c. Здесь −5, входит x<sub>1</sub>: печём торты, остальные свободные пока не трогаем.</p>
+            <p class="eq">W<sub>a</sub> = 23 − 5x<sub>1</sub> + x<sub>2</sub> − 4x<sub>3</sub> + x<sub>4</sub> − x<sub>5</sub></p>
+            <p class="note">Сейчас все свободные ноль, поэтому W<sub>a</sub> = 23. Хотим меньше 23. Один торт: 23 − 5 = 18, лучше. Одно пирожное: 23 + 1 = 24, хуже.</p>
+            <p class="note">Перед переменной минус: её выгодно делать. Перед переменной плюс: не трогаем. Если минусов внизу уже нет, уменьшить W нельзя, счёт окончен.</p>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>Нижняя строка</h3>
+            <div class="chips">
+              <div class="chip pick"><span class="k">x<sub>1</sub></span><span class="v">−5</span></div>
+              <div class="chip skip"><span class="k">x<sub>2</sub></span><span class="v">+1</span></div>
+              <div class="chip"><span class="k">x<sub>3</sub></span><span class="v">−4</span></div>
+              <div class="chip skip"><span class="k">x<sub>4</sub></span><span class="v">+1</span></div>
+              <div class="chip"><span class="k">x<sub>5</sub></span><span class="v">−1</span></div>
+            </div>
+            <p class="note">Серые плюсы не берём. Из минусов берём самый большой по модулю: −5. В базис входит x<sub>1</sub>, торты.</p>
+          </div>
+        </div>
+        <div data-rule-panel="row" hidden>
+          <div class="card" style="margin-bottom:16px">
+            <h3>Шаг 2. Выбираем строку: кто выходит из базиса</h3>
+            <p class="note" style="margin-top:0">Это уже другое правило. Не «кто меньше внизу», а кто первым упрётся в ноль, пока мы крутим выбранное направление.</p>
+            <p class="note">Базисные x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub> должны остаться ≥ 0. Остальные свободные держим нулями, двигаем только x<sub>1</sub>. Тогда из системы:</p>
+            <p class="eq">x<sub>6</sub> = 12 − 3x<sub>1</sub>, &nbsp; x<sub>7</sub> = 5 − x<sub>1</sub>, &nbsp; x<sub>8</sub> = 6 − x<sub>1</sub></p>
+            <p class="note">Потолок строки: сколько x<sub>1</sub> можно, пока эта базисная ещё неотрицательна. 12/3 = 4, 5/1 = 5, 6/1 = 6. Самый тесный 4, его даёт x<sub>6</sub>. Она выходит. В таблице то же: в столбце входящей только положительные a, считаем b/a, берём минимум. Нуль и минус строку не дают: такая базисная к нулю не падает.</p>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div class="card" style="margin-bottom:12px">
+                <h3>Вся система и таблица 0</h3>
+                <p class="note" style="margin-top:0">Канон с искусственными. Столбец x<sub>1</sub> уже выбран: он входит.</p>
+                <p class="eq" style="font-size:16px">
+                  3x<sub>1</sub> + 2x<sub>3</sub> − x<sub>4</sub> + x<sub>6</sub> = 12<br>
+                  x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> + x<sub>7</sub> = 5<br>
+                  x<sub>1</sub> + x<sub>3</sub> + x<sub>5</sub> + x<sub>8</sub> = 6
+                </p>
+                <div class="mini-wrap">
+                  <table class="sx tiny">
+                    <thead>
+                      <tr><th></th><th class="col-enter">x<sub>1</sub></th><th>x<sub>2</sub></th><th>x<sub>3</sub></th><th>x<sub>4</sub></th><th>x<sub>5</sub></th><th>b</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="rowh row-leave">x<sub>6</sub></td>
+                        <td class="pivot">3</td><td class="row-leave">0</td><td class="row-leave">2</td>
+                        <td class="row-leave">−1</td><td class="row-leave">0</td><td class="row-leave">12</td>
+                      </tr>
+                      <tr>
+                        <td class="rowh">x<sub>7</sub></td>
+                        <td class="col-enter">1</td><td>−1</td><td>1</td><td>0</td><td>0</td><td>5</td>
+                      </tr>
+                      <tr>
+                        <td class="rowh">x<sub>8</sub></td>
+                        <td class="col-enter">1</td><td>0</td><td>1</td><td>0</td><td>1</td><td>6</td>
+                      </tr>
+                      <tr>
+                        <td class="rowh obj">c</td>
+                        <td class="col-enter obj">−5</td><td class="obj">1</td><td class="obj">−4</td>
+                        <td class="obj">1</td><td class="obj">−1</td><td class="obj">−23</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="legend">
+                  <span><i class="sw" style="background:#dbeaf0"></i>входит x<sub>1</sub></span>
+                  <span><i class="sw" style="background:#f6e6d4"></i>выходит x<sub>6</sub></span>
+                  <span><i class="sw" style="background:#e8c48a"></i>разрешающая 3</span>
+                </div>
+              </div>
+              <div class="card">
+                <h3>Как получаем x<sub>6</sub> = 12 − 3x<sub>1</sub></h3>
+                <p class="note" style="margin-top:0">x<sub>1</sub> входит. Остальные свободные не трогаем, они по-прежнему 0.</p>
+                <p class="eq" style="font-size:16px">
+                  <span class="hl">3x<sub>1</sub></span> + <span class="dim">2x<sub>3</sub> − x<sub>4</sub></span> + x<sub>6</sub> = 12<br>
+                  <span class="dim">2x<sub>3</sub>=0, x<sub>4</sub>=0</span>
+                </p>
+                <p class="eq">3x<sub>1</sub> + x<sub>6</sub> = 12</p>
+                <p class="eq">x<sub>6</sub> = 12 − 3x<sub>1</sub></p>
+                <p class="note">x<sub>6</sub> нельзя сделать меньше 0:</p>
+                <p class="eq" style="font-size:16px">
+                  12 − 3x<sub>1</sub> ≥ 0<br>
+                  12 ≥ 3x<sub>1</sub><br>
+                  x<sub>1</sub> ≤ 12/3 = 4
+                </p>
+                <p class="note">Вторая и третья строки так же: x<sub>1</sub> ≤ 5 и x<sub>1</sub> ≤ 6. Самый тесный потолок 4, при нём x<sub>6</sub>=0 и выходит. x<sub>7</sub> и x<sub>8</sub> в этот момент ещё живы: 1 и 2.</p>
+                <div class="race">
+                  <div class="race-row win"><span>x<sub>6</sub></span><span class="race-bar"><i style="width:40%"></i></span><span>до 4</span></div>
+                  <div class="race-row"><span>x<sub>7</sub></span><span class="race-bar"><i style="width:50%"></i></span><span>до 5</span></div>
+                  <div class="race-row"><span>x<sub>8</sub></span><span class="race-bar"><i style="width:60%"></i></span><span>до 6</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Та же система</h3>
+              <p class="note" style="margin-top:0">Серое обнуляем: свободные кроме x<sub>1</sub> на этом шаге не двигаем. Цветом коэффициент при входящей.</p>
+              <div class="eq">
+                <span class="hl">3x<sub>1</sub></span> + <span class="dim">2x<sub>3</sub></span> <span class="dim">− x<sub>4</sub></span> + x<sub>6</sub> = 12<br>
+                <span class="hl">x<sub>1</sub></span> <span class="dim">− x<sub>2</sub></span> + <span class="dim">x<sub>3</sub></span> + x<sub>7</sub> = 5<br>
+                <span class="hl">x<sub>1</sub></span> + <span class="dim">x<sub>3</sub></span> + <span class="dim">x<sub>5</sub></span> + x<sub>8</sub> = 6
+              </div>
+              <p class="note">После обнуления каждая базисная читается как «было b, минус сколько отъедает один торт»:</p>
+              <p class="eq">
+                x<sub>6</sub> = 12 − 3x<sub>1</sub><br>
+                x<sub>7</sub> = 5 − x<sub>1</sub><br>
+                x<sub>8</sub> = 6 − x<sub>1</sub>
+              </p>
+              <p class="note">Проверка на первой строке. x<sub>1</sub> = 0 → x<sub>6</sub> = 12: текущая вершина, как в столбце b. x<sub>1</sub> = 4 → x<sub>6</sub> = 0: дошли до стенки. x<sub>1</sub> = 5 дало бы x<sub>6</sub> = −3, так нельзя. Поэтому 4 это граница допустимости, не «красивое число».</p>
+            </div>
+          </div>
+        </div>
+        <div data-rule-panel="swap" hidden>
+          <div class="swap">
+            <div class="box">
+              <h3>Было</h3>
+              <p class="eq">Базис: x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub></p>
+              <p class="eq">Свободные: x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub>, x<sub>5</sub></p>
+              <p class="note">Свободные = 0, W<sub>a</sub> = 23</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box">
+              <h3>Станет</h3>
+              <p class="eq">Базис: x<sub>1</sub>, x<sub>7</sub>, x<sub>8</sub></p>
+              <p class="eq">Свободные: x<sub>6</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub>, x<sub>5</sub></p>
+              <p class="note">x<sub>1</sub>=4, x<sub>6</sub>=0. x<sub>6</sub> искусственная, её столбец потом вычеркнем.</p>
+            </div>
+          </div>
+          <p class="note" style="margin-top:14px">Поменялись ролями только две переменные. Остальные базисные на месте. Это переход в соседнюю вершину.</p>
+        </div>
+      `,
+      onEnter: bindRulesDemo
+    },
+    {
+      id: "t0",
+      phase: "Вспомогательная · шаг 1",
+      toc: "Таблица 0 · выбор пивота",
+      title: "Начальная таблица вспомогательной",
+      lead: "Свободные сверху, базис слева, внизу пересчитанные c и −Q.",
+      tableau: T0,
+      htmlAfter: `
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>Столбец</h3>
+            <p class="eq">c = (−5, 1, −4, 1, −1)</p>
+            <p class="note">Самый отрицательный: c<sub>1</sub> = −5 → в базис идёт x<sub>1</sub>.</p>
+          </div>
+          <div class="card">
+            <h3>Строка</h3>
+            <p class="eq">12/3 = 4, &nbsp; 5/1 = 5, &nbsp; 6/1 = 6</p>
+            <p class="note">Минимум 4 → из базиса уходит x<sub>6</sub>. Пивот a<sub>61</sub> = 3.</p>
+          </div>
+        </div>
+      `
+    },
+    {
+      id: "recalc",
+      phase: "Вспомогательная · шаг 1",
+      toc: "Пересчёт таблицы",
+      title: "Считаем новую таблицу по клеткам",
+      lead: "Цепочка сверху вниз. Стрелка дописывает расчёт и таблицу после него. Всё предыдущее остаётся, можно пролистать весь ход.",
+      wide: true,
+      html: `
+        <div class="rebuild-nav">
+          <button class="nav-btn" type="button" id="rb-prev">←</button>
+          <span class="cnt" id="rb-cnt">1 / 1</span>
+          <button class="nav-btn" type="button" id="rb-next">→</button>
+          <span class="hint">стрелка добавляет следующий блок</span>
+        </div>
+        <div class="rb-chain" id="rb-chain"></div>
+      `,
+      onEnter: bindRebuild
+    },
+    {
+      id: "t1pick",
+      phase: "Вспомогательная · шаг 2",
+      toc: "Таблица 1 · новый пивот",
+      title: "Снова выбираем пивот",
+      lead: "Отрицательные c: −2/3, −2/3, −1. Любой из этих столбцов допустим. В конспекте берут x<sub>3</sub>.",
+      tableau: T1,
+      htmlAfter: `
+        <div class="card" style="margin-top:12px">
+          <h3>Отношения для столбца x<sub>3</sub></h3>
+          <p class="eq">4 / (2/3) = 6, &nbsp; 1 / (1/3) = 3, &nbsp; 2 / (1/3) = 6 → строка x<sub>7</sub>, разрешающая 1/3</p>
+        </div>
+      `
+    },
+    {
+      id: "t2",
+      phase: "Вспомогательная · шаг 2",
+      toc: "Пересчёт · x3 ↔ x7",
+      title: "Второй обмен: x<sub>3</sub> входит, x<sub>7</sub> выходит",
+      lead: "Снова цепочка сверху вниз. Разрешающая теперь 1/3. Делить на 1/3 значит умножать на 3.",
+      wide: true,
+      html: `
+        <div class="rebuild-nav">
+          <button class="nav-btn" type="button" id="rb-prev">←</button>
+          <span class="cnt" id="rb-cnt">1 / 1</span>
+          <button class="nav-btn" type="button" id="rb-next">→</button>
+          <span class="hint">стрелка добавляет следующий блок</span>
+        </div>
+        <div class="rb-chain" id="rb-chain"></div>
+      `,
+      onEnter: bindRebuild2
+    },
+    {
+      id: "t2pick",
+      phase: "Вспомогательная · шаг 3",
+      toc: "Пересчёт · x5 ↔ x8",
+      title: "Последний искусственный: x<sub>5</sub> входит, x<sub>8</sub> выходит",
+      lead: "c<sub>2</sub> = −1 и c<sub>5</sub> = −1. Берём x<sub>5</sub>: единственный плюс в этом столбце в строке x<sub>8</sub>, разрешающая 1. Цепочка как в прошлых обменах.",
+      wide: true,
+      html: `
+        <div class="rebuild-nav">
+          <button class="nav-btn" type="button" id="rb-prev">←</button>
+          <span class="cnt" id="rb-cnt">1 / 1</span>
+          <button class="nav-btn" type="button" id="rb-next">→</button>
+          <span class="hint">стрелка добавляет следующий блок</span>
+        </div>
+        <div class="rb-chain" id="rb-chain"></div>
+      `,
+      onEnter: bindRebuild3
+    },
+    {
+      id: "t3",
+      phase: "Вспомогательная · конец",
+      toc: "Таблица 3 · Wa = 0",
+      title: "Вспомогательная решена. Что таблица уже сказала",
+      lead: "Новый пивот не ищем. Нижняя строка без минусов, угол 0. Сейчас только читаем таблицу: кто сколько, почему W<sub>a</sub> = 0, и почему исходные условия уже выполнены.",
+      tableau: T3,
+      htmlAfter: `
+        <div class="card" style="margin-top:16px">
+          <h3>1. Как прочитать точку</h3>
+          <p class="note" style="margin-top:0">Свободные сверху, их нет в базисе, поэтому они ноль. Базисные слева, их значения стоят в столбце b.</p>
+          <p class="eq">
+            свободные: x<sub>2</sub> = 0, &nbsp; x<sub>4</sub> = 0<br>
+            базис: x<sub>1</sub> = 2, &nbsp; x<sub>3</sub> = 3, &nbsp; x<sub>5</sub> = 1
+          </p>
+          <p class="eq">x = (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub>, x<sub>5</sub>) = (2, 0, 3, 0, 1)</p>
+          <p class="note">Искусственных x<sub>6</sub>, x<sub>7</sub>, x<sub>8</sub> в таблице уже нет: все три вышли и вычеркнуты, значит они тоже 0.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>2. Почему W<sub>a</sub> = 0</h3>
+          <p class="note" style="margin-top:0">Вспомогательную заводили так: W<sub>a</sub> = x<sub>6</sub> + x<sub>7</sub> + x<sub>8</sub> → min. Хотели вытолкнуть искусственные в ноль.</p>
+          <p class="eq">W<sub>a</sub> = 0 + 0 + 0 = 0</p>
+          <p class="note">То же самое в углу таблицы: −Q = 0, значит Q = 0. При свободных = 0 значение цели равно Q. Здесь Q = 0, поэтому W<sub>a</sub> = 0. Нижняя строка нули: ни одну свободную уже нельзя увеличить так, чтобы W<sub>a</sub> стала ещё меньше. Меньше нуля сумма неотрицательных и не будет.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>3. Проверка исходных условий пекарни</h3>
+          <p class="note" style="margin-top:0">Подставляем (2, 0, 3) в три условия, с которых начинали. Без искусственных, своими числами.</p>
+          <p class="eq">
+            крем: 3·2 + 2·3 = 6 + 6 = 12 ≥ 12<br>
+            заказ: 2 − 0 + 3 = 5 = 5<br>
+            противень: 2 + 3 = 5 ≤ 6
+          </p>
+          <p class="note">Первое ровно 12: избытка крема нет, поэтому x<sub>4</sub> = 0. Третье 5 из 6: один противень свободен, поэтому x<sub>5</sub> = 1. Всё неотрицательно. Значит точка лежит в X. Вспомогательная как раз для этого и была: найти хоть одну допустимую вершину.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>4. Что ещё не сделано</h3>
+          <p class="note" style="margin-top:0">W<sub>a</sub> это не наши деньги. Настоящая цель W = 2x<sub>1</sub> + x<sub>2</sub> − x<sub>3</sub>. В этой точке:</p>
+          <p class="eq">W = 2·2 + 0 − 3 = 1</p>
+          <p class="note">Это просто значение в найденной вершине, не ответ. Дальше таблицу ограничений оставляем как есть, а нижнюю строку заменяем на настоящую W, выраженную через свободные x<sub>2</sub> и x<sub>4</sub>. Если бы угол вспомогательной остался больше нуля, допустимой точки не было бы, и к W мы бы не переходили.</p>
+        </div>
+      `
+    },
+    {
+      id: "wexpr",
+      phase: "Основная задача",
+      toc: "Выражаем настоящую W",
+      title: "Настоящая W через свободные",
+      lead: "Ограничения уже в порядке: точка (2, 0, 3, 0, 1) допустима. Низ таблицы ещё про W<sub>a</sub>, а нам нужны свои деньги W. Прямоугольник тут не поможет: W в таблицу ещё ни разу не писали. Выражаем базисные из тех же строк и подставляем в W.",
+      wide: true,
+      tableau: T3,
+      htmlAfter: `
+        <div class="card" style="margin-top:16px">
+          <h3>Зачем этот шаг</h3>
+          <p class="note" style="margin-top:0">Таблица 3 умеет считать только W<sub>a</sub>. Там нули, потому что искусственные уже ноль. Настоящая цель с самого начала была другая:</p>
+          <p class="eq">W = 2x<sub>1</sub> + x<sub>2</sub> − x<sub>3</sub> → min</p>
+          <p class="note">Торт +2 в свои деньги, пирожное +1, пирог −1: его уже оплатила кофейня. В симплекс-таблице внизу должны стоять коэффициенты цели <em>только при свободных</em>. Свободные сейчас x<sub>2</sub> и x<sub>4</sub>. Значит x<sub>1</sub> и x<sub>3</sub> из W надо убрать: заменить их выражениями из строк таблицы.</p>
+          <div class="flow" style="margin-top:12px">
+            <div class="box"><b>Таблица 3</b>строки x<sub>1</sub> и x<sub>3</sub>. Строку x<sub>5</sub> не трогаем: x<sub>5</sub> в W нет.</div>
+            <div class="arr">→</div>
+            <div class="box"><b>Выражаем</b>x<sub>1</sub> и x<sub>3</sub> через свободные x<sub>2</sub>, x<sub>4</sub></div>
+            <div class="arr">→</div>
+            <div class="box"><b>Подставляем в W</b>получаем W = 1 − 6x<sub>2</sub> + 3x<sub>4</sub></div>
+            <div class="arr">→</div>
+            <div class="box"><b>Новый низ</b>c<sub>2</sub> = −6, c<sub>4</sub> = 3, угол −Q = −1. Ограничения те же.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>1. Какие строки брать</h3>
+          <p class="note" style="margin-top:0">Смотрим таблицу выше. Каждая базисная строка это равенство «базисная + кое-что из свободных = b».</p>
+          <p class="eq">
+            строка x<sub>1</sub>: &nbsp; x<sub>1</sub> + 2x<sub>2</sub> − x<sub>4</sub> = 2<br>
+            строка x<sub>3</sub>: &nbsp; x<sub>3</sub> − 3x<sub>2</sub> + x<sub>4</sub> = 3<br>
+            строка x<sub>5</sub>: &nbsp; x<sub>5</sub> + x<sub>2</sub> = 1
+          </p>
+          <p class="note">В W входят только x<sub>1</sub> и x<sub>3</sub> (и свободная x<sub>2</sub>). Строка x<sub>5</sub> для цели не нужна: противень в деньги не входит. x<sub>4</sub> в исходной W тоже не было, но она свободная и всплывёт после подстановки.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>2. Базисные через свободные</h3>
+          <p class="note" style="margin-top:0">Переносим свободные вправо. Это те же равенства, только «сколько тортов и пирогов, если изменить пирожные или остаток крема».</p>
+          <p class="eq">
+            x<sub>1</sub> = 2 − 2x<sub>2</sub> + x<sub>4</sub><br>
+            x<sub>3</sub> = 3 + 3x<sub>2</sub> − x<sub>4</sub>
+          </p>
+          <p class="note">Проверка при свободных = 0: x<sub>1</sub> = 2, x<sub>3</sub> = 3. Совпадает со столбцом b. Если испечь одно лишнее пирожное (x<sub>2</sub> = 1), тортов станет на 2 меньше, пирогов на 3 больше. Это уже геометрия той же вершины: двигаемся по ребру, базисные подстраиваются.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>3. Подстановка в W</h3>
+          <p class="note" style="margin-top:0">Вместо x<sub>1</sub> и x<sub>3</sub> пишем скобки. x<sub>2</sub> уже свободная, её оставляем.</p>
+          <p class="eq">
+            W = 2x<sub>1</sub> + x<sub>2</sub> − x<sub>3</sub><br>
+            W = 2(2 − 2x<sub>2</sub> + x<sub>4</sub>) + x<sub>2</sub> − (3 + 3x<sub>2</sub> − x<sub>4</sub>)
+          </p>
+          <p class="note">Раскрываем по одной скобке.</p>
+          <p class="eq">
+            2·(2 − 2x<sub>2</sub> + x<sub>4</sub>) = 4 − 4x<sub>2</sub> + 2x<sub>4</sub><br>
+            − (3 + 3x<sub>2</sub> − x<sub>4</sub>) = −3 − 3x<sub>2</sub> + x<sub>4</sub>
+          </p>
+          <p class="eq">
+            W = 4 − 4x<sub>2</sub> + 2x<sub>4</sub> + x<sub>2</sub> − 3 − 3x<sub>2</sub> + x<sub>4</sub><br>
+            W = (4 − 3) + (−4 + 1 − 3)x<sub>2</sub> + (2 + 1)x<sub>4</sub><br>
+            W = 1 − 6x<sub>2</sub> + 3x<sub>4</sub>
+          </p>
+          <p class="note">Свободные = 0 дают W = 1. Это то же 2·2 + 0 − 3 = 1, что считали на прошлом слайде. Значит скобки не потеряли.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>4. Что кладём в низ основной таблицы</h3>
+          <p class="note" style="margin-top:0">Как и у W<sub>a</sub>: угол это −Q, а Q это свободный член, когда свободные ноль. Здесь Q = 1, поэтому угол −1. Коэффициенты при свободных идут в строку c.</p>
+          <p class="eq">c<sub>2</sub> = −6, &nbsp; c<sub>4</sub> = 3, &nbsp; −Q = −1</p>
+          <p class="note">Смысл знаков тот же. c<sub>2</sub> = −6 &lt; 0: одно лишнее пирожное уменьшает W на 6, для минимума это кандидат в базис. c<sub>4</sub> = 3 &gt; 0: увеличивать остаток крема цель портит, этот столбец не берём. Ограничения в основной таблице копируем из таблицы 3 как есть. Столбцы больше не вычёркиваем: все переменные свои.</p>
+        </div>
+      `
+    },
+    {
+      id: "main0",
+      phase: "Основная · шаг 1",
+      toc: "Пересчёт · основная",
+      title: "Старт основной: x<sub>2</sub> входит, x<sub>5</sub> выходит",
+      lead: "Сначала пивот теми же двумя правилами, что на вспомогательной. Потом цепочка пересчёта. Столбцы не вычёркиваем.",
+      wide: true,
+      html: `
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="card">
+            <h3>Столбец. Кто входит</h3>
+            <p class="note" style="margin-top:0">Низ уже из настоящей W = 1 − 6x<sub>2</sub> + 3x<sub>4</sub>. Для минимума берём свободную с самым отрицательным c.</p>
+            <p class="eq">c<sub>2</sub> = −6, &nbsp; c<sub>4</sub> = 3</p>
+            <p class="note">Минус только у x<sub>2</sub>. Одно пирожное уменьшает свои деньги на 6. x<sub>4</sub> с плюсом не берём: лишний крем цель портит. Входит x<sub>2</sub>.</p>
+          </div>
+          <div class="card">
+            <h3>Строка. Кто выходит</h3>
+            <p class="note" style="margin-top:0">В столбце x<sub>2</sub> только положительные a, считаем b/a. Кто первым упрётся в ноль.</p>
+            <p class="eq">
+              x<sub>1</sub>: 2 / 2 = 1<br>
+              x<sub>3</sub>: −3 &lt; 0, строку не берём<br>
+              x<sub>5</sub>: 1 / 1 = 1
+            </p>
+            <p class="note">Ничья: и торты, и противень кончатся при x<sub>2</sub> = 1. В конспекте берут строку x<sub>5</sub>, разрешающая 1. После шага x<sub>1</sub> станет нулём в базисе: вырожденность, не ошибка.</p>
+          </div>
+        </div>
+        <div class="rebuild-nav">
+          <button class="nav-btn" type="button" id="rb-prev">←</button>
+          <span class="cnt" id="rb-cnt">1 / 1</span>
+          <button class="nav-btn" type="button" id="rb-next">→</button>
+          <span class="hint">стрелка добавляет следующий блок</span>
+        </div>
+        <div class="rb-chain" id="rb-chain"></div>
+      `,
+      onEnter: bindRebuildMain
+    },
+    {
+      id: "main1",
+      phase: "Основная · оптимум",
+      toc: "Основная таблица 1",
+      title: "Критерий остановки. Что таблица уже сказала",
+      lead: "Новый пивот не ищем. Смотрим низ: оба коэффициента плюсы. Это и есть стоп для минимума. Дальше только читаем смену пекарни.",
+      tableau: Tmain1,
+      htmlAfter: `
+        <div class="card" style="margin-top:16px">
+          <h3>1. Почему останавливаемся</h3>
+          <p class="note" style="margin-top:0">Правило то же, что у W<sub>a</sub>. Ищем свободную с c<sub>j</sub> &lt; 0: её рост уменьшает цель. Здесь c<sub>5</sub> = 6, c<sub>4</sub> = 3. Минусов нет, столбца для входа нет.</p>
+          <p class="eq">W = −5 + 6x<sub>5</sub> + 3x<sub>4</sub></p>
+          <p class="note">Свободные сейчас ноль, поэтому W = −5. Если увеличить остаток противня x<sub>5</sub> на 1, своих денег станет на 6 больше. Если увеличить избыток крема x<sub>4</sub> на 1, своих денег станет на 3 больше. Для минимума оба хода хуже. Соседнюю вершину искать некуда.</p>
+          <p class="note">На прошлом шаге стопа не было: c<sub>2</sub> = −6. Одно пирожное уменьшало W на 6, поэтому x<sub>2</sub> и вошла. Теперь такого кандидата нет.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>2. Как прочитать точку</h3>
+          <p class="note" style="margin-top:0">Свободные сверху, их нет в базисе, поэтому они ноль. Базисные слева, их значения стоят в столбце b.</p>
+          <p class="eq">
+            свободные: x<sub>5</sub> = 0, &nbsp; x<sub>4</sub> = 0<br>
+            базис: x<sub>1</sub> = 0, &nbsp; x<sub>3</sub> = 6, &nbsp; x<sub>2</sub> = 1
+          </p>
+          <p class="eq">x* = (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub>, x<sub>5</sub>) = (0, 1, 6, 0, 0)</p>
+          <p class="note">Угол 5 = −Q, значит Q = −5. При свободных = 0 значение цели равно Q, поэтому W* = −5.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>3. Что это за смена в пекарне</h3>
+          <p class="note" style="margin-top:0">Торты не печём. Одно пирожное. Шесть пирогов. Крем без остатка, противень без дырки.</p>
+          <p class="eq">
+            торты x<sub>1</sub> = 0<br>
+            пирожные x<sub>2</sub> = 1<br>
+            пироги x<sub>3</sub> = 6<br>
+            избыток крема x<sub>4</sub> = 0<br>
+            свободный противень x<sub>5</sub> = 0
+          </p>
+          <p class="note">План держится на пирогах: их оплачивает кофейня, в свои деньги они дают минус. Пирожное нужно, чтобы сошлась комплектация заказа. Торты в этой вершине уже не помогают: они дорогие и крем с противнем и так закрыты пирогами.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>4. Проверка исходных условий</h3>
+          <p class="note" style="margin-top:0">Подставляем (0, 1, 6) в три условия, с которых начинали.</p>
+          <p class="eq">
+            крем: 3·0 + 2·6 = 12 ≥ 12<br>
+            заказ: 0 − 1 + 6 = 5 = 5<br>
+            противень: 0 + 6 = 6 ≤ 6
+          </p>
+          <p class="note">Крем ровно 12, поэтому избытка нет, x<sub>4</sub> = 0. Противень ровно 6, поэтому остатка нет, x<sub>5</sub> = 0. Заказ сошёлся: больших на 5 больше, чем пирожных. Всё неотрицательно, точка в X.</p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>5. Откуда W* = −5 и почему торты ноль</h3>
+          <p class="note" style="margin-top:0">Считаем своими деньгами, не углом таблицы.</p>
+          <p class="eq">W = 2·0 + 1 − 6 = −5</p>
+          <p class="note">Одно пирожное стоит 1. Шесть пирогов кофейня уже оплатила, в свои деньги это −6. Тортов нет, двойка за них не входит. Итог −5: смена не «минус пять рублей в кассе», а на 5 меньше своих вложений, чем ноль.</p>
+          <p class="note">x<sub>1</sub> = 0, хотя торты базисные. Три плоскости сошлись сразу: крем ровно, противень ровно, заказ ровно. Базисная переменная может быть нулём. Это вырожденная вершина, не ошибка счёта. На этом примере зацикливания нет: мы уже в оптимуме.</p>
+        </div>
+      `
+    },
+    {
+      id: "geom",
+      phase: "Геометрия",
+      toc: "Вершины многогранника",
+      title: "Где мы ходили по допустимой области",
+      lead: "Зелёное это все допустимые смены. Симплекс не ходит внутрь: только по вершинам. Мы были в двух.",
+      wide: true,
+      html: `
+        <div class="geom-layout">
+          <div class="geom-fig">
+            <svg class="geom" viewBox="0 0 560 500" id="geom" role="img" aria-label="Допустимая область на плоскости тортов и пирогов"></svg>
+            <div class="geom-legend">
+              <span><i class="sw" style="background:#c5d6c0"></i>допустимые смены</span>
+              <span><i class="sw" style="background:#b45309"></i>крем = 12</span>
+              <span><i class="sw" style="background:#155e75"></i>противень = 6</span>
+              <span><i class="sw" style="background:#9a3412"></i>x<sub>2</sub> = 0</span>
+              <span><i class="sw" style="background:#1f4d63"></i>наш шаг</span>
+            </div>
+          </div>
+          <div class="geom-story">
+            <div class="card">
+              <h3>Как читать рисунок</h3>
+              <p>Оси: торты и пироги. Пирожные на плоскость не влезают, их восстанавливаем из заказа:</p>
+              <p class="eq">x<sub>2</sub> = x<sub>1</sub> + x<sub>3</sub> − 5</p>
+              <p class="note" style="margin-top:0">Три линии это границы смены. Зелёный кусок между ними: крем не меньше 12, противень не больше 6, пирожные не отрицательны.</p>
+            </div>
+            <div class="card start">
+              <h3>Старт · после вспомогательной</h3>
+              <p class="eq">(2, 0, 3), &nbsp; W = 1</p>
+              <p>Два торта, ноль пирожных, три пирога. Крем ровно 12. Противень 5 из 6. Здесь вспомогательная нас и оставила.</p>
+            </div>
+            <div class="card best">
+              <h3>Один шаг · оптимум</h3>
+              <p class="eq">(0, 1, 6), &nbsp; W = −5</p>
+              <p>Идём по ребру «крем = 12» в соседнюю вершину. Торты уходят, появляется одно пирожное, пирогов становится шесть. Дальше по вершинам W уже не уменьшить.</p>
+            </div>
+            <p class="note">Серые точки внизу тоже вершины. Туда не ходили: там своих денег больше.</p>
+          </div>
+        </div>
+      `,
+      onEnter: drawGeom
+    },
+    {
+      id: "degen",
+      phase: "Практическое задание",
+      toc: "Вырожденность и рамки",
+      title: "Вырожденность и рамки метода",
+      lead: "Это уже не наш пример, а то, что всплывёт в вариантах и на защите. Коротко, без новой теории.",
+      html: `
+        <div class="grid-2">
+          <div class="card">
+            <h3>Вырожденная вершина</h3>
+            <p>Базисная переменная равна нулю. У нас так x<sub>1</sub>* = 0: три плоскости сошлись, торты в базисе, а печём ноль. Это не ошибка счёта.</p>
+            <p class="note">Если ноль у базисной в середине пути, теоретически возможен цикл: таблицы повторяются, W не меняется. Тогда антициклин, самое простое правило Блэнда: из кандидатов брать переменную с меньшим номером. В нашем конце пути цикла нет, мы уже в оптимуме. В вариантах то же самое: ноль в базисе в конце не чинить, просто написать.</p>
+          </div>
+          <div class="card">
+            <h3>Когда метод применим</h3>
+            <p>Только ДКЗЛП: линейная цель, линейные равенства, x ≥ 0, есть допустимый базис. Любая нелинейность сюда уже не относится. Для транспорта симплекс можно, но быстрее метод потенциалов.</p>
+            <p class="note">«Решений нет» бывает в двух видах. Вспомогательная закончилась с W<sub>a</sub> &gt; 0: область пустая. Или в основной есть столбец на вход, а в нём нет положительного a: луч по этому направлению не упирается, цель уходит в бесконечность. Оба случая пишут как «решений нет» и останавливаются.</p>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Что будет в вариантах</h3>
+          <p>Все двадцать того же вида, что сегодня: четыре переменные, одно ≤, одно =, одно ≥. Канон, две искусственные, вспомогательная, основная. Пустой области и ухода в бесконечность там нет.</p>
+          <p class="note" style="margin-top:8px">Нечётные варианты на максимум, чётные на минимум. Для максимума либо ищете плюс в строке c, либо считаете −Z → min и в конце возвращаете знак. Если в конце у свободной c<sub>j</sub> = 0, оптимальных вершин несколько: Excel может выдать другую точку, значение цели должно совпасть. В одном варианте в конце снова вырожденность, как у нас.</p>
+        </div>
+        <div class="callout ok" style="margin-top:16px">
+          Итог сегодняшнего примера: x* = (0, 1, 6), W* = −5. Три шага вспомогательной и один шаг основной. Дальше свой вариант тем же маршрутом.
+        </div>
+      `
+    },
+    {
+      id: "hw",
+      phase: "Практическое задание",
+      toc: "Практическое задание",
+      title: "Практическое задание",
+      lead: "Свой вариант из темы №1, те же шаги, что сегодня. Сдать один PDF. Считать лучше своим кодом, не коробочным солвером.",
+      wide: true,
+      html: `
+        <div class="hw-layout">
+          <div>
+            <div class="card">
+              <h3>Что сделать</h3>
+              <ol class="steps">
+                <li><span class="num">1</span><div>Вариант: номер в потоке по модулю 20. Для 32 это 12.</div></li>
+                <li><span class="num">2</span><div>Канон, вспомогательная, переход к основной, основная. Ровно тот путь, что на паре.</div></li>
+                <li><span class="num">3</span><div>Ответ: точка x* и значение цели. Если решений нет, так и написать, с причиной.</div></li>
+                <li><span class="num">4</span><div>Проверка в исходных ограничениях и в цели. Не только угол таблицы.</div></li>
+                <li><span class="num">5</span><div>Короткий рефлективный вывод: что было полезно, где застряли, как вылезли.</div></li>
+              </ol>
+              <p class="note">В PDF: ФИО, поток, номер варианта, ход решения (таблицы или разбор шагов), ответ, вывод. Только PDF. Можно фото тетради, если разборчиво, или набор формул.</p>
+            </div>
+            <div class="card">
+              <h3>Чем считать</h3>
+              <p>Excel Solver можно как проверку значения цели. Основное лучше написать на Python: свой симплекс, те же таблицы, что на бумаге.</p>
+              <p>Коробочные солверы нельзя. Это не реализация метода, а чужой ответ.</p>
+              <div class="ban">
+                <span>scipy.optimize.linprog</span>
+                <span>PuLP / CVXPY</span>
+                <span>OR-Tools</span>
+                <span>симплекс из sympy</span>
+                <span>готовый simplex с GitHub</span>
+              </div>
+              <p class="note">numpy и fractions.Fraction можно: это хранение чисел, не решение ЗЛП. Solver в Excel в сдаче не вместо таблиц, а рядом: «Z совпал / не совпал».</p>
+            </div>
+            <div class="card">
+              <h3>Оценка и на защите</h3>
+              <p>Работа 6, вопросы 4. Штраф за задержку и за ошибки в ходе. Бонус: подкаст до 1,5 минут или двойственная / ЦЛП.</p>
+              <p class="note">Спросят, почему такая разрешающая, откуда минус в столбце ушедшей, что такое угол −Q, и что делать на максимуме. Если точка разошлась с Excel, объясните про несколько оптимумов: сравнивают Z, не весь вектор.</p>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <h3>Как лучше писать код</h3>
+              <p>Одна программа, два прохода одной и той же функции шага. Не копировать вспомогательную и основную двумя разными кусками.</p>
+              <div class="codebox">
+                canon(A, signs, b)          → равенства, b ≥ 0<br>
+                start_aux(...)              → искусственные, строка W<sub>a</sub><br>
+                step(T)                     → столбец, строка, пересчёт<br>
+                phase(T, stop)              → крутить step до стопа<br>
+                to_main(T, c)               → вычеркнуть искусственные, поставить цель<br>
+                read(T)                     → x*, значение, проверка
+              </div>
+            </div>
+            <div class="card">
+              <h3>Последовательность в коде</h3>
+              <ol class="steps">
+                <li><span class="num">1</span><div>Данные варианта: вектор цели, три строки, знаки, правые части. Числа через Fraction, не float: 1/3 так и останется 1/3.</div></li>
+                <li><span class="num">2</span><div>Канон: ≤ даёт остаток со плюсом, ≥ даёт избыток со минусом, = без лишней своей. Если b &lt; 0, умножить строку на −1 и сменить знак.</div></li>
+                <li><span class="num">3</span><div>Вспомогательная: искусственная там, где нет единичного хозяина. W<sub>a</sub> = сумма искусственных. Базис сначала из остатков и искусственных.</div></li>
+                <li><span class="num">4</span><div>Шаг: для минимума столбец с c<sub>j</sub> &lt; 0; строка по меньшему b/a среди a &gt; 0; пересчёт прямоугольником из исходной таблицы шага. Печатать таблицу после каждого обмена.</div></li>
+                <li><span class="num">5</span><div>W<sub>a</sub> = 0: вычеркнуть искусственные столбцы, выразить настоящую цель через свободные, как сегодня. Иначе область пустая, стоп.</div></li>
+                <li><span class="num">6</span><div>Основная тем же step. Столбцы свои не вычёркивать. Нет кандидата на вход: оптимум. Есть столбец и нет строки: неограничена.</div></li>
+              </ol>
+            </div>
+            <div class="card">
+              <h3>Мелочи, которые ломают сдачу</h3>
+              <p>Максимум не забыть: либо −Z, либо правило на плюс. Ничья в отношениях: зафиксируйте правило (как в конспекте или Блэнд) и не прыгайте. Ноль у базисной оставьте, это вырожденность. Не сравнивайте весь x* с Excel, сравнивайте цель. Не хардкодьте числа с пары: возьмите свой вариант.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Ещё разборы, другими словами</h3>
+          <p>Сегодня один пример. Если мало, посмотрите практики с прошлых лет: там больше задач и другой тон.</p>
+          <ul class="links">
+            <li><a href="https://disk.yandex.ru/i/RNOviQaYqS1OQg" target="_blank" rel="noopener">Практика Духанова · постановка ЗЛП</a></li>
+            <li><a href="https://disk.yandex.ru/i/SW2MnfU3K1B9aA" target="_blank" rel="noopener">Практика Духанова · симплекс</a></li>
+            <li><a href="https://disk.yandex.ru/i/KEx_8UWqp2cRnA" target="_blank" rel="noopener">Практика Бондарева</a></li>
+          </ul>
+          <p class="note">У Духанова больше математики и теоретических выкладок. У Бондарева ближе к тому, как делать и как считать.</p>
+        </div>
+      `
+    }
+  ];
+
+  function bindRebuild() {
+    const oldA = [
+      [F(3), F(0), F(2), F(-1), F(0)],
+      [F(1), F(-1), F(1), F(0), F(0)],
+      [F(1), F(0), F(1), F(0), F(1)]
+    ];
+    const oldB = [F(12), F(5), F(6)];
+    const oldC = [F(-5), F(1), F(-4), F(1), F(-1)];
+    const oldQ = F(-23);
+    const startVals = {};
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 5; j++) startVals[i + "," + j] = oldA[i][j];
+      startVals[i + ",b"] = oldB[i];
+    }
+    for (let j = 0; j < 5; j++) startVals["c," + j] = oldC[j];
+    startVals.Q = oldQ;
+
+    const R = [1, 7, 8];
+    const C = [6, 2, 3, 4, 5];
+    const acc = {};
+    function S(spec) {
+      if (spec.add) Object.assign(acc, spec.add);
+      spec.set = Object.assign({}, acc);
+      if (!spec.rows) spec.rows = R;
+      if (!spec.cols) spec.cols = C;
+      return spec;
+    }
+
+    const steps = [
+      S({
+        cap: "После смены подписей",
+        title: "Меняем подписи",
+        why: "<div class='why'>" +
+          "<p>В базис входит x<sub>1</sub> (торты), из базиса выходит x<sub>6</sub>. В таблице это только обмен имён: строка x<sub>6</sub> становится строкой x<sub>1</sub>, столбец x<sub>1</sub> становится столбцом x<sub>6</sub>.</p>" +
+          "<p>Числа пока не трогаем. Они ещё от старой системы, где базисными были искусственные. Сейчас как раз перепишем их так, чтобы новая базисная x<sub>1</sub> читалась из своей строки.</p>" +
+          "</div>",
+        now: ["row:0", "col:0"]
+      }),
+      S({
+        cap: "После разрешающей строки и столбца",
+        title: "Делим строку на 3. Откуда минус в столбце",
+        formula: "строка x<sub>1</sub>: 1/3 &nbsp; 0 &nbsp; 2/3 &nbsp; −1/3 &nbsp; 0 &nbsp; b = 4<br>столбец x<sub>6</sub>: −1/3 &nbsp; −1/3 &nbsp; c = 5/3",
+        why: "<div class='why'>" +
+          "<p class='k'>1. Зачем делить строку на 3</p>" +
+          "<p>Разрешающая строка была уравнением старой базисной x<sub>6</sub>:</p>" +
+          "<p class='eq'>3x<sub>1</sub> + 2x<sub>3</sub> − x<sub>4</sub> + x<sub>6</sub> = 12</p>" +
+          "<p>x<sub>2</sub> и x<sub>5</sub> сюда не входят, у них нули. Нам нужна строка про новую базисную x<sub>1</sub>. Делим всё уравнение на 3:</p>" +
+          "<p class='eq'>x<sub>1</sub> + (2/3)x<sub>3</sub> − (1/3)x<sub>4</sub> + (1/3)x<sub>6</sub> = 4</p>" +
+          "<p>Сама тройка становится 1/3. Правая часть 4: если свободные сейчас ноль, то x<sub>1</sub> = 4. Это тот же потолок 12/3, которым выбирали, кто выходит.</p>" +
+          "<p class='k'>2. Откуда минус в столбце ушедшей</p>" +
+          "<p>Из той же строки выражаем x<sub>1</sub> и переносим x<sub>6</sub> вправо. Минус появляется здесь, при переносе:</p>" +
+          "<p class='eq'>x<sub>1</sub> = 4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub></p>" +
+          "<p>Эту скобку подставляем в другую строку, например в x<sub>7</sub>. Было:</p>" +
+          "<p class='eq'>x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> + x<sub>7</sub> = 5</p>" +
+          "<p>Старый коэффициент при x<sub>1</sub> в этой строке равен 1. Кусок про x<sub>6</sub> после подстановки:</p>" +
+          "<p class='eq'>1 · (−1/3 x<sub>6</sub>) = −1/3 x<sub>6</sub></p>" +
+          "<p>Потому в новом столбце x<sub>6</sub> в строке x<sub>7</sub> стоит −1/3. То же в строке x<sub>8</sub>: там старое при x<sub>1</sub> тоже 1, снова −1/3. В строке c старое было −5, поэтому −(−5)/3 = 5/3.</p>" +
+          "<p>Правило «столбец делим на разрешающую и ставим минус» как раз кодирует эту подстановку, чтобы не писать её каждый раз:</p>" +
+          "<p class='eq'>новое в столбце ушедшей = − (старое в столбце входящей) / 3</p>" +
+          "<p class='k'>3. Почему столбцы x<sub>2</sub> и x<sub>5</sub> дальше не трогаем</p>" +
+          "<p>В новой строке x<sub>1</sub> у них нули. Чужую клетку считают так: старое минус произведение двух соседей, делённое на 3. Если сосед по разрешающей строке ноль, произведение ноль, клетка остаётся. Весь столбец x<sub>2</sub> и весь столбец x<sub>5</sub> можно не пересчитывать.</p>" +
+          "</div>",
+        add: {
+          "0,0": F(1, 3), "0,1": F(0), "0,2": F(2, 3), "0,3": F(-1, 3), "0,4": F(0), "0,b": F(4),
+          "1,0": F(-1, 3), "2,0": F(-1, 3), "c,0": F(5, 3)
+        },
+        now: ["0,0", "0,1", "0,2", "0,3", "0,4", "0,b", "1,0", "2,0", "c,0"]
+      }),
+      S({
+        cap: "После клетки x7, x3",
+        title: "Новая клетка x<sub>7</sub>, x<sub>3</sub>. Считаем подстановкой",
+        stack: true,
+        src: ["0,0", "0,2", "1,0", "1,2"],
+        why: "<div class='why'>" +
+          "<p>Ищем одно число: какой коэффициент будет при x<sub>3</sub> в <em>новой</em> строке x<sub>7</sub>.</p>" +
+          "<p class='k'>Важно.</p>" +
+          "<p>Числа берём из исходной таблицы <em>здесь</em>, сразу над этим абзацем. Не из таблицы выше по цепочке: там строка уже поделена, там 2/3 и 1/3, и если взять их, счёт поедет.</p>" +
+          "<p>Те же две старые строки словами. Цветом те четыре числа:</p>" +
+          "<div class='old2'>" +
+          "строка x<sub>6</sub>: <span class='mk p'>3</span> x<sub>1</sub> + <span class='mk n'>2</span> x<sub>3</sub> − x<sub>4</sub> + x<sub>6</sub> = 12<br>" +
+          "строка x<sub>7</sub>: <span class='mk t'>1</span> x<sub>1</sub> − x<sub>2</sub> + <span class='mk q'>1</span> x<sub>3</sub> + x<sub>7</sub> = 5" +
+          "</div>" +
+          "<p class='k'>Шаг 1. x<sub>1</sub> мы уже выразили, когда делили первую строку на 3</p>" +
+          "<p class='eq'>x<sub>1</sub> = 4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub></p>" +
+          "<p>Откуда −2/3: в первой строке при x<sub>3</sub> стояла двойка. Делим на 3, получаем 2/3. Переносим вправо, появляется минус. Это не новое правило, это то же самое деление строки.</p>" +
+          "<p class='k'>Шаг 2. Всю скобку ставим вместо x<sub>1</sub> во вторую строку</p>" +
+          "<p>Было: x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> + x<sub>7</sub> = 5. Пишем скобку на место x<sub>1</sub>:</p>" +
+          "<p class='eq'>(4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub>) − x<sub>2</sub> + x<sub>3</sub> + x<sub>7</sub> = 5</p>" +
+          "<p class='k'>Шаг 3. Смотрим только x<sub>3</sub>, остальное не трогаем</p>" +
+          "<p>Из скобки пришло −(2/3)x<sub>3</sub>. Во второй строке x<sub>3</sub> уже была, коэффициент +1. Складываем:</p>" +
+          "<p class='eq'>−2/3 + 1 = 1/3</p>" +
+          "<p>Это и есть новое число в клетке. Можно написать так: старое 1, плюс то, что принесла подстановка 1·(−2/3):</p>" +
+          "<p class='eq'>1 + 1·(−2/3) = 1/3</p>" +
+          "<p class='k'>Зачем тогда пишут 1 − 2·1 / 3</p>" +
+          "<p>Это та же арифметика, только минус уже зашит в формулу, а 2 и 3 берут сырыми из первой строки, не превращая их заранее в −2/3:</p>" +
+          "<p class='eq'>1 + 1·(−2/3) = 1 − 2/3<br>1 − (2·1)/3 = 1 − 2/3</p>" +
+          "<p>Одинаково. 2 это сосед по старой разрешающей строке, вторая 1 это старый коэффициент при x<sub>1</sub> в строке x<sub>7</sub>, 3 это разрешающая. Прямоугольник ниже только напоминает, какие четыре клетки взять из исходной таблицы здесь.</p>" +
+          "</div>",
+        rect: { p: "3", n: "2", t: "1", q: "1", result: "1/3", top: "из строки x<sub>6</sub>", side: "из строки x<sub>7</sub>" },
+        add: { "1,2": F(1, 3) },
+        now: ["1,2"]
+      }),
+      S({
+        cap: "После клетки x7, x4",
+        title: "Клетка x<sub>7</sub>, x<sub>4</sub>. Та же подстановка",
+        formula: "старое 0, из скобки приходит −(−1/3): &nbsp; 0 + 1/3 = 1/3",
+        src: ["0,0", "0,3", "1,0", "1,3"],
+        why: "<div class='why'>" +
+          "<p>Снова две старые строки из исходной таблицы здесь. Теперь столбец x<sub>4</sub>:</p>" +
+          "<div class='old2'>x<sub>6</sub>: 3 x<sub>1</sub> − 1 x<sub>4</sub> + … = 12<br>x<sub>7</sub>: 1 x<sub>1</sub> + 0 x<sub>4</sub> + … = 5</div>" +
+          "<p>В выражении x<sub>1</sub> при x<sub>4</sub> стоит +1/3 (минус на минус: −(−1)/3). В строке x<sub>7</sub> старое при x<sub>4</sub> было 0. Итого 0 + 1·(1/3) = 1/3.</p>" +
+          "<p>Короткая запись теми же сырыми числами: 0 − (−1)·1 / 3 = 1/3. Знак −1 не потерять.</p>" +
+          "</div>",
+        rect: { p: "3", n: "−1", t: "1", q: "0", result: "1/3", top: "из строки x<sub>6</sub>", side: "из строки x<sub>7</sub>" },
+        add: { "1,3": F(1, 3) },
+        now: ["1,3"]
+      }),
+      S({
+        cap: "После правой части x7",
+        title: "Правая часть x<sub>7</sub>. Снова то же самое",
+        formula: "старое 5, из скобки приходит 1·(−4): &nbsp; 5 − 4 = 1",
+        src: ["0,0", "0,b", "1,0", "1,b"],
+        why: "<div class='why'>" +
+          "<p>Столбец b это тоже коэффициент, только свободный член. Числа из исходной таблицы здесь. Из x<sub>1</sub> = 4 − … в строку x<sub>7</sub> приходит 1·4. Старое было 5, поэтому 5 − 4 = 1. Сырыми числами: 5 − 12·1 / 3 = 1.</p>" +
+          "<p>Свободные сейчас ноль, значит в новой вершине x<sub>7</sub> = 1.</p>" +
+          "</div>",
+        rect: { p: "3", n: "12", t: "1", q: "5", result: "1", top: "из строки x<sub>6</sub>", side: "из строки x<sub>7</sub>" },
+        add: { "1,b": F(1) },
+        now: ["1,b"]
+      }),
+      S({
+        cap: "После строки x8",
+        title: "Прямоугольники всей строки x<sub>8</sub>",
+        formula: "x<sub>3</sub>: 1 − 2·1 / 3 = 1/3<br>x<sub>4</sub>: 0 − (−1)·1 / 3 = 1/3<br>b: 6 − 12·1 / 3 = 2",
+        src: ["0,0", "0,2", "0,3", "0,b", "2,0", "2,2", "2,3", "2,b"],
+        notes: "Та же подстановка, строка x<sub>8</sub>. Числа из исходной таблицы в этом блоке. Вторая клетка это пример из конспекта. Правая часть 2: в новой вершине x<sub>8</sub> = 2. Флажок открывает подробный разбор клетки.",
+        pockets: [
+          {
+            title: "Подробнее: клетка x<sub>8</sub>, x<sub>3</sub>",
+            short: "1 − 2·1 / 3 = 1/3",
+            src: ["0,0", "0,2", "2,0", "2,2"],
+            why: "<div class='why'>" +
+              "<p>Ищем коэффициент при x<sub>3</sub> в <em>новой</em> строке x<sub>8</sub>. Числа из исходной таблицы здесь, не из уже поделённой строки выше.</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>6</sub>: <span class='mk p'>3</span> x<sub>1</sub> + <span class='mk n'>2</span> x<sub>3</sub> − x<sub>4</sub> + x<sub>6</sub> = 12<br>" +
+              "строка x<sub>8</sub>: <span class='mk t'>1</span> x<sub>1</sub> + <span class='mk q'>1</span> x<sub>3</sub> + x<sub>5</sub> + x<sub>8</sub> = 6" +
+              "</div>" +
+              "<p class='k'>Шаг 1. x<sub>1</sub> уже выражена</p>" +
+              "<p class='eq'>x<sub>1</sub> = 4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub></p>" +
+              "<p class='k'>Шаг 2. Скобку ставим вместо x<sub>1</sub> в строку x<sub>8</sub></p>" +
+              "<p class='eq'>(4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub>) + x<sub>3</sub> + x<sub>5</sub> + x<sub>8</sub> = 6</p>" +
+              "<p class='k'>Шаг 3. Только x<sub>3</sub></p>" +
+              "<p>Из скобки −(2/3)x<sub>3</sub>, в строке x<sub>8</sub> уже было +x<sub>3</sub>:</p>" +
+              "<p class='eq'>−2/3 + 1 = 1/3</p>" +
+              "<p>Или: старое 1 плюс то, что принесла подстановка 1·(−2/3). Сырыми числами то же самое: 1 − 2·1 / 3 = 1/3.</p>" +
+              "</div>",
+            rect: { p: "3", n: "2", t: "1", q: "1", result: "1/3", top: "из строки x<sub>6</sub>", side: "из строки x<sub>8</sub>" }
+          },
+          {
+            title: "Подробнее: клетка x<sub>8</sub>, x<sub>4</sub>",
+            short: "0 − (−1)·1 / 3 = 1/3",
+            src: ["0,0", "0,3", "2,0", "2,3"],
+            why: "<div class='why'>" +
+              "<p>Это клетка из конспекта. Снова две старые строки, столбец x<sub>4</sub>:</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>6</sub>: <span class='mk p'>3</span> x<sub>1</sub> <span class='mk n'>− 1</span> x<sub>4</sub> + x<sub>6</sub> = 12<br>" +
+              "строка x<sub>8</sub>: <span class='mk t'>1</span> x<sub>1</sub> + <span class='mk q'>0</span> x<sub>4</sub> + x<sub>8</sub> = 6" +
+              "</div>" +
+              "<p>В выражении x<sub>1</sub> при x<sub>4</sub> стоит +1/3: двойной минус, −(−1)/3. В строке x<sub>8</sub> старое при x<sub>4</sub> было 0.</p>" +
+              "<p class='eq'>0 + 1·(1/3) = 1/3</p>" +
+              "<p>Сырыми числами: старое − (сосед по строке)·(сосед по столбцу) / разрешающая.</p>" +
+              "<p class='eq'>0 − (−1)·1 / 3 = 1/3</p>" +
+              "<p>Знак −1 не потерять: минус на минус даёт плюс.</p>" +
+              "</div>",
+            rect: { p: "3", n: "−1", t: "1", q: "0", result: "1/3", top: "из строки x<sub>6</sub>", side: "из строки x<sub>8</sub>" }
+          },
+          {
+            title: "Подробнее: правая часть x<sub>8</sub>",
+            short: "6 − 12·1 / 3 = 2",
+            src: ["0,0", "0,b", "2,0", "2,b"],
+            why: "<div class='why'>" +
+              "<p>Столбец b считают тем же прямоугольником. Две старые правые части: 12 в строке x<sub>6</sub> и 6 в строке x<sub>8</sub>. Старое при x<sub>1</sub> в строке x<sub>8</sub> равно 1.</p>" +
+              "<p>Из скобки x<sub>1</sub> = 4 − … в эту строку приходит 1·4. Старое было 6, поэтому 6 − 4 = 2.</p>" +
+              "<p class='eq'>6 − 12·1 / 3 = 2</p>" +
+              "<p>Свободные сейчас ноль, значит в новой вершине x<sub>8</sub> = 2.</p>" +
+              "</div>",
+            rect: { p: "3", n: "12", t: "1", q: "6", result: "2", top: "из строки x<sub>6</sub>", side: "из строки x<sub>8</sub>" }
+          }
+        ],
+        add: { "2,2": F(1, 3), "2,3": F(1, 3), "2,b": F(2) },
+        now: ["2,2", "2,3", "2,b"]
+      }),
+      S({
+        cap: "После нижней строки и угла",
+        title: "Прямоугольники строки c и угла −Q",
+        formula: "c<sub>3</sub>: −4 − 2·(−5) / 3 = −2/3<br>c<sub>4</sub>: 1 − (−1)·(−5) / 3 = −2/3<br>−Q: −23 − 12·(−5) / 3 = −3",
+        src: ["0,0", "0,2", "0,3", "0,b", "c,0", "c,2", "c,3", "Q"],
+        notes: "Строка c и угол считают тем же прямоугольником. Сосед по разрешающему столбцу здесь из строки c, это −5. Числа из исходной таблицы в этом блоке. Q стало 3: раньше W<sub>a</sub> = 23, теперь 3. Флажок открывает подробный разбор клетки.",
+        pockets: [
+          {
+            title: "Подробнее: c при x<sub>3</sub>",
+            why: "<div class='why'>" +
+              "<p>Ищем новый коэффициент при x<sub>3</sub> в строке цели. Две старые строки из исходной таблицы:</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>6</sub>: <span class='mk p'>3</span> x<sub>1</sub> + <span class='mk n'>2</span> x<sub>3</sub> + … = 12<br>" +
+              "строка c: <span class='mk t'>−5</span> x<sub>1</sub> + <span class='mk q'>−4</span> x<sub>3</sub> + … , угол −23" +
+              "</div>" +
+              "<p class='k'>Шаг 1. x<sub>1</sub> уже выражена</p>" +
+              "<p class='eq'>x<sub>1</sub> = 4 − (1/3)x<sub>6</sub> − (2/3)x<sub>3</sub> + (1/3)x<sub>4</sub></p>" +
+              "<p class='k'>Шаг 2. Скобку ставим вместо x<sub>1</sub> в цель</p>" +
+              "<p>Старое при x<sub>1</sub> в строке c равно −5. Кусок про x<sub>3</sub> из скобки: −5 · (−2/3) = +10/3. В строке c при x<sub>3</sub> уже было −4.</p>" +
+              "<p class='eq'>−4 + 10/3 = −2/3</p>" +
+              "<p>Сырыми числами: старое − (сосед по строке)·(сосед по столбцу) / разрешающая. Сосед по столбцу теперь −5, не 1.</p>" +
+              "<p class='eq'>−4 − 2·(−5) / 3 = −4 + 10/3 = −2/3</p>" +
+              "</div>",
+            rect: { p: "3", n: "2", t: "−5", q: "−4", result: "−2/3", top: "из строки x<sub>6</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: c при x<sub>4</sub>",
+            why: "<div class='why'>" +
+              "<p>Та же цель, столбец x<sub>4</sub>:</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>6</sub>: <span class='mk p'>3</span> x<sub>1</sub> <span class='mk n'>− 1</span> x<sub>4</sub> + … = 12<br>" +
+              "строка c: <span class='mk t'>−5</span> x<sub>1</sub> + <span class='mk q'>1</span> x<sub>4</sub> + …" +
+              "</div>" +
+              "<p>В выражении x<sub>1</sub> при x<sub>4</sub> стоит +1/3. Старое в строке c при x<sub>1</sub> равно −5, при x<sub>4</sub> равно 1.</p>" +
+              "<p class='eq'>1 + (−5)·(1/3) = 1 − 5/3 = −2/3</p>" +
+              "<p>Сырыми числами. Два минуса в произведении дают плюс, потом вычитаем:</p>" +
+              "<p class='eq'>1 − (−1)·(−5) / 3 = 1 − 5/3 = −2/3</p>" +
+              "</div>",
+            rect: { p: "3", n: "−1", t: "−5", q: "1", result: "−2/3", top: "из строки x<sub>6</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: угол −Q",
+            why: "<div class='why'>" +
+              "<p>Угол это тоже клетка: старое −23, сосед по строке 12, сосед по столбцу −5, разрешающая 3.</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>6</sub>, столбец b: <span class='mk n'>12</span><br>" +
+              "строка c, при x<sub>1</sub>: <span class='mk t'>−5</span>, угол: <span class='mk q'>−23</span>" +
+              "</div>" +
+              "<p>Из скобки x<sub>1</sub> = 4 − … в цель приходит −5·4 = −20. Старый свободный член цели 23 даёт 23 − 20 = 3. Это новое Q. Угол таблицы пишут как −Q, поэтому −3.</p>" +
+              "<p class='eq'>−23 − 12·(−5) / 3 = −23 + 20 = −3</p>" +
+              "<p>Раньше при нулевых свободных W<sub>a</sub> = 23, теперь 3. Цель вспомогательной упала: мы уменьшаем сумму искусственных.</p>" +
+              "</div>",
+            rect: { p: "3", n: "12", t: "−5", q: "−23", result: "−3", top: "из строки x<sub>6</sub>", side: "угол −Q" }
+          }
+        ],
+        add: { "c,2": F(-2, 3), "c,3": F(-2, 3), Q: F(-3) },
+        now: ["c,2", "c,3", "Q"]
+      }),
+      S({
+        cap: "Готовая таблица 1",
+        title: "Вычёркиваем столбец x<sub>6</sub>",
+        why: "<div class='why'>" +
+          "<p>x<sub>6</sub> искусственная. Она уже не базисная: её роль забрали торты. Свободную искусственную в следующих шагах не держат, столбец вычёркивают.</p>" +
+          "<p>Таблица готова. Дальше снова смотрим знаки c и выбираем, кто входит.</p>" +
+          "</div>",
+        drop: true,
+        now: ["col:0"]
+      })
+    ];
+
+    let k = 0;
+    const chainEl = document.getElementById("rb-chain");
+    const cnt = document.getElementById("rb-cnt");
+    const prevB = document.getElementById("rb-prev");
+    const nextB = document.getElementById("rb-next");
+    if (!chainEl || !cnt) return;
+    const total = steps.length + 1;
+
+    function merged(idx) {
+      const v = Object.assign({}, startVals);
+      if (idx >= 0) Object.assign(v, steps[idx].set || {});
+      return v;
+    }
+
+    function markClass(key, marks) {
+      if (marks.now && marks.now.has(key)) return " now";
+      if (marks.src && marks.src.has(key)) return " src";
+      if (marks.fresh && marks.fresh.has(key)) return " fresh";
+      return "";
+    }
+
+    function drawTable(vals, spec, marks, drop) {
+      marks = marks || {};
+      const cols = spec.cols;
+      const rows = spec.rows;
+      const cross = !!spec.cross;
+      let h = "<table class='sx'><thead><tr><th></th>";
+      cols.forEach((j, cj) => {
+        const gone = drop && cj === 0 ? " gone" : "";
+        const ent = cross && cj === 0 ? " col-enter" : "";
+        h += "<th class='" + ent + gone + markClass("col:" + cj, marks) + "'>" + x(j) + "</th>";
+      });
+      h += "<th>b</th></tr></thead><tbody>";
+      rows.forEach((i, ri) => {
+        const leave = cross && ri === 0 ? " row-leave" : "";
+        h += "<tr><td class='rowh " + leave + markClass("row:" + ri, marks) + "'>" + x(i) + "</td>";
+        cols.forEach((j, cj) => {
+          const key = ri + "," + cj;
+          const gone = drop && cj === 0 ? " gone" : "";
+          const ent = cross && cj === 0 ? " col-enter" : "";
+          const pv = (cross && ri === 0 && cj === 0) ? " pivot" : "";
+          h += "<td class='" + leave + ent + pv + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+        });
+        const bk = ri + ",b";
+        h += "<td class='" + leave + markClass(bk, marks) + "'>" + htmlF(vals[bk]) + "</td></tr>";
+      });
+      h += "<tr><td class='rowh obj'>c</td>";
+      cols.forEach((j, cj) => {
+        const key = "c," + cj;
+        const gone = drop && cj === 0 ? " gone" : "";
+        const ent = cross && cj === 0 ? " col-enter" : "";
+        h += "<td class='obj " + ent + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+      });
+      h += "<td class='obj" + markClass("Q", marks) + "'>" + htmlF(vals.Q) + "</td></tr></tbody></table>";
+      return h;
+    }
+
+    function rectHTML(r) {
+      return "<div class='rect-block'><div class='rect big'>" +
+        "<b class='p'>" + r.p + "</b><b class='n'>" + (r.n || "·") + "</b><span>" + (r.top || "") + "</span>" +
+        "<b class='t'>" + (r.t || "·") + "</b><b class='q'>" + r.q + "</b><span>" + (r.side || "") + "</span>" +
+        "</div><p class='rect-key'>" +
+        "<i class='sw' style='background:#e8c48a'></i>разрешающая &nbsp; " +
+        "<i class='sw' style='background:#f6e6d4'></i>сосед по строке &nbsp; " +
+        "<i class='sw' style='background:#dbeaf0'></i>сосед по столбцу &nbsp; " +
+        "<i class='sw' style='background:#e8efd8'></i>старое в клетке</p>" +
+        "<p class='eq'>новое = <span class='mk q'>старое в клетке</span> − (<span class='mk n'>сосед по строке</span>)·(<span class='mk t'>сосед по столбцу</span>) / <span class='mk p'>разрешающая</span></p>" +
+        "<p class='eq'>новое = <span class='mk q'>" + r.q + "</span> − (<span class='mk n'>" + r.n + "</span>)·(<span class='mk t'>" + r.t + "</span>) / <span class='mk p'>" + r.p + "</span>" +
+        (r.result ? " = " + r.result : "") + "</p></div>";
+    }
+
+    function originTable(srcKeys) {
+      return "<div class='rb-ref'>" +
+        "<p class='tbl-cap'>Исходная таблица. Голубым те клетки, которые берём</p>" +
+        drawTable(
+          startVals,
+          { rows: [6, 7, 8], cols: [1, 2, 3, 4, 5], cross: true },
+          { src: new Set(srcKeys || []) },
+          false
+        ) +
+        "</div>";
+    }
+
+    function pocketHTML(p) {
+      return "<details class='pocket'>" +
+        "<summary><span class='pocket-title'>" + p.title + "</span></summary>" +
+        "<div class='pocket-body'>" +
+        (p.why || "") +
+        (p.rect ? "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(p.rect) : "") +
+        "</div></details>";
+    }
+
+    function calcInner(s) {
+      const ref = s.src ? originTable(s.src) : "";
+      const text = (s.formula && !s.rect ? "<p class='eq' style='margin-top:0'>" + s.formula + "</p>" : "") +
+        (s.why || "") +
+        (s.notes ? "<p class='note'" + (s.formula || s.why ? "" : " style='margin-top:0'") + ">" + s.notes + "</p>" : "");
+      const pockets = (s.pockets || []).map(pocketHTML).join("");
+      if (s.rect) return ref + text + "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(s.rect);
+      return ref + text + pockets;
+    }
+
+    function tableBlock(cap, vals, spec, marks, drop, isNew) {
+      return "<div class='rb-block table" + (isNew ? " fresh" : "") + "'>" +
+        "<p class='tbl-cap'>" + cap + "</p>" +
+        drawTable(vals, spec, marks, drop) +
+        "</div>";
+    }
+
+    function calcBlock(s, isNew) {
+      return "<div class='rb-block calc" + (isNew ? " fresh" : "") + "'>" +
+        "<h3>" + s.title + "</h3>" + calcInner(s) +
+        "</div>";
+    }
+
+    function paint() {
+      const startSpec = { rows: [6, 7, 8], cols: [1, 2, 3, 4, 5], cross: true };
+      const takeFromStart = k > 0 ? (steps[k - 1].src || []) : ["0,0"];
+      let html = tableBlock(
+        k > 0 && steps[k - 1].src ? "Исходная таблица. Голубым те числа, которые берём в расчёте ниже" : "Исходная таблица",
+        startVals,
+        startSpec,
+        { src: new Set(takeFromStart) },
+        false,
+        k === 0
+      );
+      for (let i = 0; i < k; i++) {
+        const s = steps[i];
+        const last = i === k - 1;
+        html += "<div class='rb-down'>↓</div>";
+        html += calcBlock(s, last);
+        html += "<div class='rb-down'>↓</div>";
+        const fresh = Object.keys(s.set || {}).filter((key) => !(s.now || []).includes(key));
+        html += tableBlock(
+          s.cap,
+          merged(i),
+          s,
+          { now: new Set(s.now || []), fresh: new Set(fresh) },
+          !!s.drop,
+          last
+        );
+      }
+      chainEl.innerHTML = html;
+      cnt.textContent = (k + 1) + " / " + total;
+      if (prevB) prevB.disabled = k === 0;
+      if (nextB) nextB.disabled = k === steps.length;
+      const last = chainEl.querySelector(".rb-block.fresh");
+      if (last && k > 0) last.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    if (prevB) prevB.onclick = () => { if (k > 0) { k--; paint(); } };
+    if (nextB) nextB.onclick = () => { if (k < steps.length) { k++; paint(); } };
+    paint();
+  }
+
+  function bindRebuild2() {
+    const startVals = {
+      "0,0": F(0), "0,1": F(2, 3), "0,2": F(-1, 3), "0,3": F(0), "0,b": F(4),
+      "1,0": F(-1), "1,1": F(1, 3), "1,2": F(1, 3), "1,3": F(0), "1,b": F(1),
+      "2,0": F(0), "2,1": F(1, 3), "2,2": F(1, 3), "2,3": F(1), "2,b": F(2),
+      "c,0": F(1), "c,1": F(-2, 3), "c,2": F(-2, 3), "c,3": F(-1), Q: F(-3)
+    };
+    const startRows = [1, 7, 8];
+    const startCols = [2, 3, 4, 5];
+    const R = [1, 3, 8];
+    const C = [2, 7, 4, 5];
+    const PR = 1;
+    const PC = 1;
+    const DROP = 1;
+    const acc = {};
+    function S(spec) {
+      if (spec.add) Object.assign(acc, spec.add);
+      spec.set = Object.assign({}, acc);
+      if (!spec.rows) spec.rows = R;
+      if (!spec.cols) spec.cols = C;
+      return spec;
+    }
+
+    const steps = [
+      S({
+        cap: "После смены подписей",
+        title: "Меняем подписи",
+        why: "<div class='why'>" +
+          "<p>В базис входит x<sub>3</sub> (пироги), из базиса выходит x<sub>7</sub>. Строка x<sub>7</sub> становится строкой x<sub>3</sub>, столбец x<sub>3</sub> становится столбцом x<sub>7</sub>.</p>" +
+          "<p>Числа пока те же. Разрешающая клетка 1/3 на пересечении. Дальше перепишем строку так, чтобы из неё читалась новая базисная x<sub>3</sub>.</p>" +
+          "</div>",
+        now: ["row:1", "col:1"]
+      }),
+      S({
+        cap: "После разрешающей строки и столбца",
+        title: "Строку делим на 1/3, то есть умножаем на 3. Откуда минус в столбце",
+        formula: "строка x<sub>3</sub>: −3 &nbsp; 3 &nbsp; 1 &nbsp; 0 &nbsp; b = 3<br>столбец x<sub>7</sub>: −2 &nbsp; −1 &nbsp; c = 2",
+        why: "<div class='why'>" +
+          "<p class='k'>1. Зачем умножать строку на 3</p>" +
+          "<p>Разрешающая строка была уравнением старой базисной x<sub>7</sub>:</p>" +
+          "<p class='eq'>− x<sub>2</sub> + (1/3)x<sub>3</sub> + (1/3)x<sub>4</sub> + x<sub>7</sub> = 1</p>" +
+          "<p>x<sub>5</sub> сюда не входит, у неё ноль. Чтобы слева осталось x<sub>3</sub>, делим всё на 1/3, то есть умножаем на 3:</p>" +
+          "<p class='eq'>− 3x<sub>2</sub> + x<sub>3</sub> + x<sub>4</sub> + 3x<sub>7</sub> = 3</p>" +
+          "<p>Сама 1/3 становится 3. Правая часть 3: если свободные сейчас ноль, то x<sub>3</sub> = 3. Это тот же потолок 1 / (1/3), которым выбирали, кто выходит.</p>" +
+          "<p class='k'>2. Откуда минус в столбце ушедшей</p>" +
+          "<p>Из этой строки выражаем x<sub>3</sub> и переносим x<sub>7</sub> вправо. Минус появляется при переносе:</p>" +
+          "<p class='eq'>x<sub>3</sub> = 3 + 3x<sub>2</sub> − x<sub>4</sub> − 3x<sub>7</sub></p>" +
+          "<p>Эту скобку подставляем в другую строку, например в x<sub>1</sub>. Было:</p>" +
+          "<p class='eq'>(2/3)x<sub>3</sub> − (1/3)x<sub>4</sub> + x<sub>1</sub> = 4</p>" +
+          "<p>Старый коэффициент при x<sub>3</sub> в этой строке равен 2/3. Кусок про x<sub>7</sub> после подстановки:</p>" +
+          "<p class='eq'>(2/3) · (−3 x<sub>7</sub>) = −2 x<sub>7</sub></p>" +
+          "<p>Потому в новом столбце x<sub>7</sub> в строке x<sub>1</sub> стоит −2. В строке x<sub>8</sub> старое при x<sub>3</sub> было 1/3, поэтому −(1/3) / (1/3) = −1. В строке c старое было −2/3, поэтому −(−2/3) / (1/3) = 2.</p>" +
+          "<p>Правило то же: столбец ушедшей = минус старый столбец входящей, делить на разрешающую.</p>" +
+          "<p class='eq'>новое в столбце ушедшей = − (старое в столбце входящей) / (1/3)</p>" +
+          "<p class='k'>3. Почему столбец x<sub>5</sub> не трогаем</p>" +
+          "<p>В новой строке x<sub>3</sub> у x<sub>5</sub> ноль. Произведение соседей ноль, весь столбец x<sub>5</sub> остаётся: 0, 0, 1 и c = −1.</p>" +
+          "</div>",
+        add: {
+          "1,0": F(-3), "1,1": F(3), "1,2": F(1), "1,3": F(0), "1,b": F(3),
+          "0,1": F(-2), "2,1": F(-1), "c,1": F(2)
+        },
+        now: ["1,0", "1,1", "1,2", "1,3", "1,b", "0,1", "2,1", "c,1"]
+      }),
+      S({
+        cap: "После клетки x1, x2",
+        title: "Новая клетка x<sub>1</sub>, x<sub>2</sub>. Считаем подстановкой",
+        src: ["1,1", "1,0", "0,1", "0,0"],
+        why: "<div class='why'>" +
+          "<p>Ищем коэффициент при x<sub>2</sub> в <em>новой</em> строке x<sub>1</sub>. Числа из исходной таблицы <em>здесь</em>. Не из уже умноженной строки выше: там уже −3 и 3.</p>" +
+          "<div class='old2'>" +
+          "строка x<sub>7</sub>: <span class='mk n'>−1</span> x<sub>2</sub> + <span class='mk p'>1/3</span> x<sub>3</sub> + … = 1<br>" +
+          "строка x<sub>1</sub>: <span class='mk q'>0</span> x<sub>2</sub> + <span class='mk t'>2/3</span> x<sub>3</sub> + … = 4" +
+          "</div>" +
+          "<p class='k'>Шаг 1. x<sub>3</sub> уже выражена</p>" +
+          "<p class='eq'>x<sub>3</sub> = 3 + 3x<sub>2</sub> − x<sub>4</sub> − 3x<sub>7</sub></p>" +
+          "<p class='k'>Шаг 2. Скобку ставим вместо x<sub>3</sub> в строку x<sub>1</sub></p>" +
+          "<p class='eq'>(2/3)(3 + 3x<sub>2</sub> − x<sub>4</sub> − 3x<sub>7</sub>) − (1/3)x<sub>4</sub> + x<sub>1</sub> = 4</p>" +
+          "<p class='k'>Шаг 3. Только x<sub>2</sub></p>" +
+          "<p>Из скобки пришло (2/3)·3 x<sub>2</sub> = 2x<sub>2</sub>. В строке x<sub>1</sub> при x<sub>2</sub> было 0. Итого 0 + 2 = 2.</p>" +
+          "<p>Сырыми числами: старое − (сосед по строке)·(сосед по столбцу) / разрешающая.</p>" +
+          "<p class='eq'>0 − (−1)·(2/3) / (1/3) = 0 + 2 = 2</p>" +
+          "<p>Делить на 1/3 это умножить на 3: (−1)·(2/3)·3 = −2, потом старое минус это число: 0 − (−2) = 2.</p>" +
+          "</div>",
+        rect: { p: "1/3", n: "−1", t: "2/3", q: "0", result: "2", top: "из строки x<sub>7</sub>", side: "из строки x<sub>1</sub>" },
+        add: { "0,0": F(2) },
+        now: ["0,0"]
+      }),
+      S({
+        cap: "После клетки x1, x4",
+        title: "Клетка x<sub>1</sub>, x<sub>4</sub>. Та же подстановка",
+        src: ["1,1", "1,2", "0,1", "0,2"],
+        why: "<div class='why'>" +
+          "<p>Снова две старые строки, столбец x<sub>4</sub>:</p>" +
+          "<div class='old2'>x<sub>7</sub>: (1/3) x<sub>3</sub> + (1/3) x<sub>4</sub> + … = 1<br>x<sub>1</sub>: (2/3) x<sub>3</sub> − (1/3) x<sub>4</sub> + … = 4</div>" +
+          "<p>В выражении x<sub>3</sub> при x<sub>4</sub> стоит −1. Старое в строке x<sub>1</sub> при x<sub>4</sub> было −1/3, при x<sub>3</sub> было 2/3.</p>" +
+          "<p class='eq'>−1/3 + (2/3)·(−1) = −1/3 − 2/3 = −1</p>" +
+          "<p>Сырыми числами:</p>" +
+          "<p class='eq'>−1/3 − (1/3)·(2/3) / (1/3) = −1/3 − 2/3 = −1</p>" +
+          "</div>",
+        rect: { p: "1/3", n: "1/3", t: "2/3", q: "−1/3", result: "−1", top: "из строки x<sub>7</sub>", side: "из строки x<sub>1</sub>" },
+        add: { "0,2": F(-1) },
+        now: ["0,2"]
+      }),
+      S({
+        cap: "После правой части x1",
+        title: "Правая часть x<sub>1</sub>. Снова то же самое",
+        src: ["1,1", "1,b", "0,1", "0,b"],
+        why: "<div class='why'>" +
+          "<p>Столбец b считают тем же прямоугольником. Старое 4, сосед по строке 1, сосед по столбцу 2/3, разрешающая 1/3.</p>" +
+          "<p>Из скобки x<sub>3</sub> = 3 − … в строку x<sub>1</sub> приходит (2/3)·3 = 2. Старое было 4, поэтому 4 − 2 = 2.</p>" +
+          "<p class='eq'>4 − 1·(2/3) / (1/3) = 4 − 2 = 2</p>" +
+          "<p>Свободные сейчас ноль, значит в новой вершине x<sub>1</sub> = 2. Раньше было 4: часть «тортов» уступили пирогам.</p>" +
+          "</div>",
+        rect: { p: "1/3", n: "1", t: "2/3", q: "4", result: "2", top: "из строки x<sub>7</sub>", side: "из строки x<sub>1</sub>" },
+        add: { "0,b": F(2) },
+        now: ["0,b"]
+      }),
+      S({
+        cap: "После строки x8",
+        title: "Прямоугольники всей строки x<sub>8</sub>",
+        formula: "x<sub>2</sub>: 0 − (−1)·(1/3) / (1/3) = 1<br>x<sub>4</sub>: 1/3 − (1/3)·(1/3) / (1/3) = 0<br>b: 2 − 1·(1/3) / (1/3) = 1",
+        src: ["1,1", "1,0", "1,2", "1,b", "2,1", "2,0", "2,2", "2,b"],
+        notes: "Та же подстановка, строка x<sub>8</sub>. Числа из исходной таблицы в этом блоке. Правая часть 1: в новой вершине x<sub>8</sub> = 1. Флажок открывает подробный разбор клетки.",
+        pockets: [
+          {
+            title: "Подробнее: клетка x<sub>8</sub>, x<sub>2</sub>",
+            why: "<div class='why'>" +
+              "<p>Две старые строки, столбец x<sub>2</sub>:</p>" +
+              "<div class='old2'>x<sub>7</sub>: <span class='mk n'>−1</span> x<sub>2</sub> + <span class='mk p'>1/3</span> x<sub>3</sub> + … = 1<br>x<sub>8</sub>: <span class='mk q'>0</span> x<sub>2</sub> + <span class='mk t'>1/3</span> x<sub>3</sub> + … = 2</div>" +
+              "<p>Из скобки x<sub>3</sub> = 3 + 3x<sub>2</sub> − … в строку x<sub>8</sub> приходит (1/3)·3 x<sub>2</sub> = x<sub>2</sub>. Старое было 0. Итого 1.</p>" +
+              "<p class='eq'>0 − (−1)·(1/3) / (1/3) = 1</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "−1", t: "1/3", q: "0", result: "1", top: "из строки x<sub>7</sub>", side: "из строки x<sub>8</sub>" }
+          },
+          {
+            title: "Подробнее: клетка x<sub>8</sub>, x<sub>4</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое 1/3, соседи 1/3 и 1/3, разрешающая 1/3:</p>" +
+              "<p class='eq'>1/3 − (1/3)·(1/3) / (1/3) = 1/3 − 1/3 = 0</p>" +
+              "<p>Клетка обнулилась. Так бывает, это не ошибка.</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "1/3", t: "1/3", q: "1/3", result: "0", top: "из строки x<sub>7</sub>", side: "из строки x<sub>8</sub>" }
+          },
+          {
+            title: "Подробнее: правая часть x<sub>8</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое 2, из скобки приходит (1/3)·3 = 1. Поэтому 2 − 1 = 1.</p>" +
+              "<p class='eq'>2 − 1·(1/3) / (1/3) = 1</p>" +
+              "<p>В новой вершине x<sub>8</sub> = 1.</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "1", t: "1/3", q: "2", result: "1", top: "из строки x<sub>7</sub>", side: "из строки x<sub>8</sub>" }
+          }
+        ],
+        add: { "2,0": F(1), "2,2": F(0), "2,b": F(1) },
+        now: ["2,0", "2,2", "2,b"]
+      }),
+      S({
+        cap: "После нижней строки и угла",
+        title: "Прямоугольники строки c и угла −Q",
+        formula: "c<sub>2</sub>: 1 − (−1)·(−2/3) / (1/3) = −1<br>c<sub>4</sub>: −2/3 − (1/3)·(−2/3) / (1/3) = 0<br>−Q: −3 − 1·(−2/3) / (1/3) = −1",
+        src: ["1,1", "1,0", "1,2", "1,b", "c,1", "c,0", "c,2", "Q"],
+        notes: "Сосед по разрешающему столбцу здесь из строки c, это −2/3. Q стало 1: раньше W<sub>a</sub> = 3, теперь 1. Ещё не ноль, искусственные не все ушли. Флажок открывает подробный разбор.",
+        pockets: [
+          {
+            title: "Подробнее: c при x<sub>2</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое 1, сосед по строке −1, сосед по столбцу −2/3, разрешающая 1/3.</p>" +
+              "<p>Два минуса в произведении: (−1)·(−2/3) = +2/3, делим на 1/3, получаем 2. Потом 1 − 2 = −1.</p>" +
+              "<p class='eq'>1 − (−1)·(−2/3) / (1/3) = 1 − 2 = −1</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "−1", t: "−2/3", q: "1", result: "−1", top: "из строки x<sub>7</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: c при x<sub>4</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое −2/3, соседи 1/3 и −2/3:</p>" +
+              "<p class='eq'>−2/3 − (1/3)·(−2/3) / (1/3) = −2/3 − (−2/3) = 0</p>" +
+              "<p>Коэффициент при x<sub>4</sub> в цели обнулился. Этот столбец на следующем шаге уже не кандидат: c = 0, не меньше нуля.</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "1/3", t: "−2/3", q: "−2/3", result: "0", top: "из строки x<sub>7</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: угол −Q",
+            why: "<div class='why'>" +
+              "<p>Старое −3, сосед по строке 1, сосед по столбцу −2/3.</p>" +
+              "<p class='eq'>−3 − 1·(−2/3) / (1/3) = −3 − (−2) = −1</p>" +
+              "<p>Q стало 1. Раньше W<sub>a</sub> = 3, теперь 1. Упала, но не до нуля: в базисе ещё искусственная x<sub>8</sub>.</p>" +
+              "</div>",
+            rect: { p: "1/3", n: "1", t: "−2/3", q: "−3", result: "−1", top: "из строки x<sub>7</sub>", side: "угол −Q" }
+          }
+        ],
+        add: { "c,0": F(-1), "c,2": F(0), Q: F(-1) },
+        now: ["c,0", "c,2", "Q"]
+      }),
+      S({
+        cap: "Готовая таблица 2",
+        title: "Вычёркиваем столбец x<sub>7</sub>",
+        why: "<div class='why'>" +
+          "<p>x<sub>7</sub> искусственная и уже не базисная. Столбец вычёркиваем. Базис сейчас x<sub>1</sub>, x<sub>3</sub>, x<sub>8</sub>. W<sub>a</sub> = 1. Дальше снова смотрим знаки c: ещё есть минусы, вспомогательная не кончена.</p>" +
+          "</div>",
+        drop: true,
+        now: ["col:1"]
+      })
+    ];
+
+    let k = 0;
+    const chainEl = document.getElementById("rb-chain");
+    const cnt = document.getElementById("rb-cnt");
+    const prevB = document.getElementById("rb-prev");
+    const nextB = document.getElementById("rb-next");
+    if (!chainEl || !cnt) return;
+    const total = steps.length + 1;
+
+    function merged(idx) {
+      const v = Object.assign({}, startVals);
+      if (idx >= 0) Object.assign(v, steps[idx].set || {});
+      return v;
+    }
+
+    function markClass(key, marks) {
+      if (marks.now && marks.now.has(key)) return " now";
+      if (marks.src && marks.src.has(key)) return " src";
+      if (marks.fresh && marks.fresh.has(key)) return " fresh";
+      return "";
+    }
+
+    function drawTable(vals, spec, marks, drop) {
+      marks = marks || {};
+      const cols = spec.cols;
+      const rows = spec.rows;
+      const cross = !!spec.cross;
+      const pr = spec.pr != null ? spec.pr : PR;
+      const pc = spec.pc != null ? spec.pc : PC;
+      const dropCol = spec.dropCol != null ? spec.dropCol : DROP;
+      let h = "<table class='sx'><thead><tr><th></th>";
+      cols.forEach((j, cj) => {
+        const gone = drop && cj === dropCol ? " gone" : "";
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<th class='" + ent + gone + markClass("col:" + cj, marks) + "'>" + x(j) + "</th>";
+      });
+      h += "<th>b</th></tr></thead><tbody>";
+      rows.forEach((i, ri) => {
+        const leave = cross && ri === pr ? " row-leave" : "";
+        h += "<tr><td class='rowh " + leave + markClass("row:" + ri, marks) + "'>" + x(i) + "</td>";
+        cols.forEach((j, cj) => {
+          const key = ri + "," + cj;
+          const gone = drop && cj === dropCol ? " gone" : "";
+          const ent = cross && cj === pc ? " col-enter" : "";
+          const pv = (cross && ri === pr && cj === pc) ? " pivot" : "";
+          h += "<td class='" + leave + ent + pv + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+        });
+        const bk = ri + ",b";
+        h += "<td class='" + leave + markClass(bk, marks) + "'>" + htmlF(vals[bk]) + "</td></tr>";
+      });
+      h += "<tr><td class='rowh obj'>c</td>";
+      cols.forEach((j, cj) => {
+        const key = "c," + cj;
+        const gone = drop && cj === dropCol ? " gone" : "";
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<td class='obj " + ent + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+      });
+      h += "<td class='obj" + markClass("Q", marks) + "'>" + htmlF(vals.Q) + "</td></tr></tbody></table>";
+      return h;
+    }
+
+    function rectHTML(r) {
+      return "<div class='rect-block'><div class='rect big'>" +
+        "<b class='p'>" + r.p + "</b><b class='n'>" + (r.n || "·") + "</b><span>" + (r.top || "") + "</span>" +
+        "<b class='t'>" + (r.t || "·") + "</b><b class='q'>" + r.q + "</b><span>" + (r.side || "") + "</span>" +
+        "</div><p class='rect-key'>" +
+        "<i class='sw' style='background:#e8c48a'></i>разрешающая &nbsp; " +
+        "<i class='sw' style='background:#f6e6d4'></i>сосед по строке &nbsp; " +
+        "<i class='sw' style='background:#dbeaf0'></i>сосед по столбцу &nbsp; " +
+        "<i class='sw' style='background:#e8efd8'></i>старое в клетке</p>" +
+        "<p class='eq'>новое = <span class='mk q'>старое в клетке</span> − (<span class='mk n'>сосед по строке</span>)·(<span class='mk t'>сосед по столбцу</span>) / <span class='mk p'>разрешающая</span></p>" +
+        "<p class='eq'>новое = <span class='mk q'>" + r.q + "</span> − (<span class='mk n'>" + r.n + "</span>)·(<span class='mk t'>" + r.t + "</span>) / <span class='mk p'>" + r.p + "</span>" +
+        (r.result ? " = " + r.result : "") + "</p></div>";
+    }
+
+    function originTable(srcKeys) {
+      return "<div class='rb-ref'>" +
+        "<p class='tbl-cap'>Таблица 1. Голубым те клетки, которые берём</p>" +
+        drawTable(startVals, { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC }, { src: new Set(srcKeys || []) }, false) +
+        "</div>";
+    }
+
+    function pocketHTML(p) {
+      return "<details class='pocket'>" +
+        "<summary><span class='pocket-title'>" + p.title + "</span></summary>" +
+        "<div class='pocket-body'>" +
+        (p.why || "") +
+        (p.rect ? "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(p.rect) : "") +
+        "</div></details>";
+    }
+
+    function calcInner(s) {
+      const ref = s.src ? originTable(s.src) : "";
+      const text = (s.formula && !s.rect ? "<p class='eq' style='margin-top:0'>" + s.formula + "</p>" : "") +
+        (s.why || "") +
+        (s.notes ? "<p class='note'" + (s.formula || s.why ? "" : " style='margin-top:0'") + ">" + s.notes + "</p>" : "");
+      const pockets = (s.pockets || []).map(pocketHTML).join("");
+      if (s.rect) return ref + text + "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(s.rect);
+      return ref + text + pockets;
+    }
+
+    function tableBlock(cap, vals, spec, marks, drop, isNew) {
+      return "<div class='rb-block table" + (isNew ? " fresh" : "") + "'>" +
+        "<p class='tbl-cap'>" + cap + "</p>" +
+        drawTable(vals, spec, marks, drop) +
+        "</div>";
+    }
+
+    function calcBlock(s, isNew) {
+      return "<div class='rb-block calc" + (isNew ? " fresh" : "") + "'>" +
+        "<h3>" + s.title + "</h3>" + calcInner(s) +
+        "</div>";
+    }
+
+    function paint() {
+      const startSpec = { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC };
+      const takeFromStart = k > 0 ? (steps[k - 1].src || []) : ["1,1"];
+      let html = tableBlock(
+        k > 0 && steps[k - 1].src ? "Таблица 1. Голубым те числа, которые берём в расчёте ниже" : "Таблица 1, с неё начинаем второй обмен",
+        startVals,
+        startSpec,
+        { src: new Set(takeFromStart) },
+        false,
+        k === 0
+      );
+      for (let i = 0; i < k; i++) {
+        const s = steps[i];
+        const last = i === k - 1;
+        html += "<div class='rb-down'>↓</div>";
+        html += calcBlock(s, last);
+        html += "<div class='rb-down'>↓</div>";
+        const fresh = Object.keys(s.set || {}).filter((key) => !(s.now || []).includes(key));
+        html += tableBlock(
+          s.cap,
+          merged(i),
+          Object.assign({ pr: PR, pc: PC, dropCol: DROP, cross: i === 0 }, s),
+          { now: new Set(s.now || []), fresh: new Set(fresh) },
+          !!s.drop,
+          last
+        );
+      }
+      chainEl.innerHTML = html;
+      cnt.textContent = (k + 1) + " / " + total;
+      if (prevB) prevB.disabled = k === 0;
+      if (nextB) nextB.disabled = k === steps.length;
+      const last = chainEl.querySelector(".rb-block.fresh");
+      if (last && k > 0) last.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    if (prevB) prevB.onclick = () => { if (k > 0) { k--; paint(); } };
+    if (nextB) nextB.onclick = () => { if (k < steps.length) { k++; paint(); } };
+    paint();
+  }
+
+  function bindRebuild3() {
+    const startVals = {
+      "0,0": F(2), "0,1": F(-1), "0,2": F(0), "0,b": F(2),
+      "1,0": F(-3), "1,1": F(1), "1,2": F(0), "1,b": F(3),
+      "2,0": F(1), "2,1": F(0), "2,2": F(1), "2,b": F(1),
+      "c,0": F(-1), "c,1": F(0), "c,2": F(-1), Q: F(-1)
+    };
+    const startRows = [1, 3, 8];
+    const startCols = [2, 4, 5];
+    const R = [1, 3, 5];
+    const C = [2, 4, 8];
+    const PR = 2;
+    const PC = 2;
+    const DROP = 2;
+    const acc = {};
+    function S(spec) {
+      if (spec.add) Object.assign(acc, spec.add);
+      spec.set = Object.assign({}, acc);
+      if (!spec.rows) spec.rows = R;
+      if (!spec.cols) spec.cols = C;
+      return spec;
+    }
+
+    const steps = [
+      S({
+        cap: "После смены подписей",
+        title: "Меняем подписи",
+        why: "<div class='why'>" +
+          "<p>В базис входит x<sub>5</sub> (остаток противня), из базиса выходит последняя искусственная x<sub>8</sub>. Строка x<sub>8</sub> становится строкой x<sub>5</sub>, столбец x<sub>5</sub> становится столбцом x<sub>8</sub>.</p>" +
+          "<p>Разрешающая клетка равна 1. Это самый простой случай: делить на 1 ничего не меняет.</p>" +
+          "</div>",
+        now: ["row:2", "col:2"]
+      }),
+      S({
+        cap: "После разрешающей строки и столбца",
+        title: "Строку делим на 1. Откуда минус в столбце",
+        formula: "строка x<sub>5</sub>: 1 &nbsp; 0 &nbsp; 1 &nbsp; b = 1<br>столбец x<sub>8</sub>: 0 &nbsp; 0 &nbsp; c = 1",
+        why: "<div class='why'>" +
+          "<p class='k'>1. Строка почти не меняется</p>" +
+          "<p>Разрешающая строка была уравнением x<sub>8</sub>:</p>" +
+          "<p class='eq'>x<sub>2</sub> + x<sub>5</sub> + x<sub>8</sub> = 1</p>" +
+          "<p>x<sub>4</sub> сюда не входит, у неё ноль. Делим на 1: числа те же. Новая базисная читается сразу:</p>" +
+          "<p class='eq'>x<sub>5</sub> = 1 − x<sub>2</sub> − x<sub>8</sub></p>" +
+          "<p>Если свободные ноль, x<sub>5</sub> = 1. Это тот же потолок 1/1.</p>" +
+          "<p class='k'>2. Минус в столбце ушедшей</p>" +
+          "<p>x<sub>8</sub> перенесли вправо, отсюда минус. Правило то же: столбец ушедшей = минус старый столбец входящей, делить на 1.</p>" +
+          "<p>В строках x<sub>1</sub> и x<sub>3</sub> старое при x<sub>5</sub> было 0, поэтому −0/1 = 0. Столбец там так и остаётся нулевым.</p>" +
+          "<p>В строке c старое при x<sub>5</sub> было −1, поэтому −(−1)/1 = 1.</p>" +
+          "<p class='k'>3. Почему столбец x<sub>4</sub> не трогаем</p>" +
+          "<p>В строке x<sub>5</sub> у x<sub>4</sub> ноль. Произведение соседей ноль, весь столбец x<sub>4</sub> остаётся: −1, 1, 0 и c = 0.</p>" +
+          "</div>",
+        add: {
+          "2,0": F(1), "2,1": F(0), "2,2": F(1), "2,b": F(1),
+          "0,2": F(0), "1,2": F(0), "c,2": F(1)
+        },
+        now: ["2,0", "2,1", "2,2", "2,b", "0,2", "1,2", "c,2"]
+      }),
+      S({
+        cap: "После строк x1 и x3",
+        title: "Строки x<sub>1</sub> и x<sub>3</sub> не двигаются",
+        src: ["2,2", "0,2", "1,2", "0,0", "0,1", "0,b", "1,0", "1,1", "1,b"],
+        why: "<div class='why'>" +
+          "<p>В исходной таблице в столбце x<sub>5</sub> у x<sub>1</sub> и у x<sub>3</sub> стоят нули. Сосед по разрешающему столбцу ноль. Тогда прямоугольник ничего не вычитает.</p>" +
+          "<p class='eq'>строка x<sub>1</sub>, x<sub>2</sub>: 2 − 1·0 / 1 = 2<br>строка x<sub>1</sub>, x<sub>4</sub>: −1 − 0·0 / 1 = −1<br>b у x<sub>1</sub>: 2 − 1·0 / 1 = 2</p>" +
+          "<p class='eq'>строка x<sub>3</sub>, x<sub>2</sub>: −3 − 1·0 / 1 = −3<br>строка x<sub>3</sub>, x<sub>4</sub>: 1 − 0·0 / 1 = 1<br>b у x<sub>3</sub>: 3 − 1·0 / 1 = 3</p>" +
+          "<p>Все шесть клеток как были. Менять нужно только строку c и угол: там сосед по столбцу не ноль, он равен −1.</p>" +
+          "</div>",
+        now: ["0,0", "0,1", "0,b", "1,0", "1,1", "1,b"]
+      }),
+      S({
+        cap: "После нижней строки и угла",
+        title: "Прямоугольники строки c и угла −Q",
+        formula: "c<sub>2</sub>: −1 − 1·(−1) / 1 = 0<br>c<sub>4</sub>: 0 − 0·(−1) / 1 = 0<br>−Q: −1 − 1·(−1) / 1 = 0",
+        src: ["2,2", "2,0", "2,1", "2,b", "c,2", "c,0", "c,1", "Q"],
+        notes: "Сосед по разрешающему столбцу из строки c равен −1. После этого шага вся нижняя строка ноль, угол ноль. W<sub>a</sub> стала 0. Флажок открывает подробный разбор.",
+        pockets: [
+          {
+            title: "Подробнее: c при x<sub>2</sub>",
+            why: "<div class='why'>" +
+              "<p>Это единственная клетка среди ограничений и цели, которая правда меняется не из-за подписей.</p>" +
+              "<div class='old2'>" +
+              "строка x<sub>8</sub>: <span class='mk n'>1</span> x<sub>2</sub> + <span class='mk p'>1</span> x<sub>5</sub> + x<sub>8</sub> = 1<br>" +
+              "строка c: <span class='mk q'>−1</span> x<sub>2</sub> + <span class='mk t'>−1</span> x<sub>5</sub> , угол −1" +
+              "</div>" +
+              "<p>Из скобки x<sub>5</sub> = 1 − x<sub>2</sub> − x<sub>8</sub> в цель приходит −1 · (−x<sub>2</sub>) = +x<sub>2</sub>. Старое при x<sub>2</sub> было −1. Итого −1 + 1 = 0.</p>" +
+              "<p class='eq'>−1 − 1·(−1) / 1 = 0</p>" +
+              "<p>Можно сразу подставить в W<sub>a</sub> = 1 − x<sub>2</sub> − x<sub>5</sub>:</p>" +
+              "<p class='eq'>1 − x<sub>2</sub> − (1 − x<sub>2</sub> − x<sub>8</sub>) = x<sub>8</sub></p>" +
+              "<p>Когда x<sub>8</sub> уйдёт в свободные и станет нулём, W<sub>a</sub> станет 0. Это и есть конец вспомогательной.</p>" +
+              "</div>",
+            rect: { p: "1", n: "1", t: "−1", q: "−1", result: "0", top: "из строки x<sub>8</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: c при x<sub>4</sub>",
+            why: "<div class='why'>" +
+              "<p>В разрешающей строке у x<sub>4</sub> ноль. Произведение соседей ноль, клетка остаётся 0.</p>" +
+              "<p class='eq'>0 − 0·(−1) / 1 = 0</p>" +
+              "</div>",
+            rect: { p: "1", n: "0", t: "−1", q: "0", result: "0", top: "из строки x<sub>8</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: угол −Q",
+            why: "<div class='why'>" +
+              "<p>Старое −1, сосед по строке 1, сосед по столбцу −1, разрешающая 1.</p>" +
+              "<p class='eq'>−1 − 1·(−1) / 1 = −1 + 1 = 0</p>" +
+              "<p>Q стало 0. Раньше W<sub>a</sub> = 1, теперь 0. Угол таблицы −Q тоже 0. Все искусственные либо вычеркнуты, либо сейчас выйдут. Вспомогательная решена.</p>" +
+              "</div>",
+            rect: { p: "1", n: "1", t: "−1", q: "−1", result: "0", top: "из строки x<sub>8</sub>", side: "угол −Q" }
+          }
+        ],
+        add: { "c,0": F(0), "c,1": F(0), Q: F(0) },
+        now: ["c,0", "c,1", "Q"]
+      }),
+      S({
+        cap: "Готовая таблица 3",
+        title: "Вычёркиваем столбец x<sub>8</sub>",
+        why: "<div class='why'>" +
+          "<p>x<sub>8</sub> искусственная и уже не базисная. Столбец вычёркиваем. В базисе остаются только переменные исходной задачи: x<sub>1</sub>, x<sub>3</sub>, x<sub>5</sub>.</p>" +
+          "<p>Нижняя строка нулевая, угол 0, W<sub>a</sub>* = 0. Свободные x<sub>2</sub> = x<sub>4</sub> = 0. Точка: x = (2, 0, 3, 0, 1). Это уже допустимо для исходной задачи. Дальше нижнюю строку заменим на настоящую W.</p>" +
+          "</div>",
+        drop: true,
+        now: ["col:2"]
+      })
+    ];
+
+    let k = 0;
+    const chainEl = document.getElementById("rb-chain");
+    const cnt = document.getElementById("rb-cnt");
+    const prevB = document.getElementById("rb-prev");
+    const nextB = document.getElementById("rb-next");
+    if (!chainEl || !cnt) return;
+    const total = steps.length + 1;
+
+    function merged(idx) {
+      const v = Object.assign({}, startVals);
+      if (idx >= 0) Object.assign(v, steps[idx].set || {});
+      return v;
+    }
+
+    function markClass(key, marks) {
+      if (marks.now && marks.now.has(key)) return " now";
+      if (marks.src && marks.src.has(key)) return " src";
+      if (marks.fresh && marks.fresh.has(key)) return " fresh";
+      return "";
+    }
+
+    function drawTable(vals, spec, marks, drop) {
+      marks = marks || {};
+      const cols = spec.cols;
+      const rows = spec.rows;
+      const cross = !!spec.cross;
+      const pr = spec.pr != null ? spec.pr : PR;
+      const pc = spec.pc != null ? spec.pc : PC;
+      const dropCol = spec.dropCol != null ? spec.dropCol : DROP;
+      let h = "<table class='sx'><thead><tr><th></th>";
+      cols.forEach((j, cj) => {
+        const gone = drop && cj === dropCol ? " gone" : "";
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<th class='" + ent + gone + markClass("col:" + cj, marks) + "'>" + x(j) + "</th>";
+      });
+      h += "<th>b</th></tr></thead><tbody>";
+      rows.forEach((i, ri) => {
+        const leave = cross && ri === pr ? " row-leave" : "";
+        h += "<tr><td class='rowh " + leave + markClass("row:" + ri, marks) + "'>" + x(i) + "</td>";
+        cols.forEach((j, cj) => {
+          const key = ri + "," + cj;
+          const gone = drop && cj === dropCol ? " gone" : "";
+          const ent = cross && cj === pc ? " col-enter" : "";
+          const pv = (cross && ri === pr && cj === pc) ? " pivot" : "";
+          h += "<td class='" + leave + ent + pv + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+        });
+        const bk = ri + ",b";
+        h += "<td class='" + leave + markClass(bk, marks) + "'>" + htmlF(vals[bk]) + "</td></tr>";
+      });
+      h += "<tr><td class='rowh obj'>c</td>";
+      cols.forEach((j, cj) => {
+        const key = "c," + cj;
+        const gone = drop && cj === dropCol ? " gone" : "";
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<td class='obj " + ent + gone + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+      });
+      h += "<td class='obj" + markClass("Q", marks) + "'>" + htmlF(vals.Q) + "</td></tr></tbody></table>";
+      return h;
+    }
+
+    function rectHTML(r) {
+      return "<div class='rect-block'><div class='rect big'>" +
+        "<b class='p'>" + r.p + "</b><b class='n'>" + (r.n || "·") + "</b><span>" + (r.top || "") + "</span>" +
+        "<b class='t'>" + (r.t || "·") + "</b><b class='q'>" + r.q + "</b><span>" + (r.side || "") + "</span>" +
+        "</div><p class='rect-key'>" +
+        "<i class='sw' style='background:#e8c48a'></i>разрешающая &nbsp; " +
+        "<i class='sw' style='background:#f6e6d4'></i>сосед по строке &nbsp; " +
+        "<i class='sw' style='background:#dbeaf0'></i>сосед по столбцу &nbsp; " +
+        "<i class='sw' style='background:#e8efd8'></i>старое в клетке</p>" +
+        "<p class='eq'>новое = <span class='mk q'>старое в клетке</span> − (<span class='mk n'>сосед по строке</span>)·(<span class='mk t'>сосед по столбцу</span>) / <span class='mk p'>разрешающая</span></p>" +
+        "<p class='eq'>новое = <span class='mk q'>" + r.q + "</span> − (<span class='mk n'>" + r.n + "</span>)·(<span class='mk t'>" + r.t + "</span>) / <span class='mk p'>" + r.p + "</span>" +
+        (r.result ? " = " + r.result : "") + "</p></div>";
+    }
+
+    function originTable(srcKeys) {
+      return "<div class='rb-ref'>" +
+        "<p class='tbl-cap'>Таблица 2. Голубым те клетки, которые берём</p>" +
+        drawTable(startVals, { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC }, { src: new Set(srcKeys || []) }, false) +
+        "</div>";
+    }
+
+    function pocketHTML(p) {
+      return "<details class='pocket'>" +
+        "<summary><span class='pocket-title'>" + p.title + "</span></summary>" +
+        "<div class='pocket-body'>" +
+        (p.why || "") +
+        (p.rect ? "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(p.rect) : "") +
+        "</div></details>";
+    }
+
+    function calcInner(s) {
+      const ref = s.src ? originTable(s.src) : "";
+      const text = (s.formula && !s.rect ? "<p class='eq' style='margin-top:0'>" + s.formula + "</p>" : "") +
+        (s.why || "") +
+        (s.notes ? "<p class='note'" + (s.formula || s.why ? "" : " style='margin-top:0'") + ">" + s.notes + "</p>" : "");
+      const pockets = (s.pockets || []).map(pocketHTML).join("");
+      if (s.rect) return ref + text + "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(s.rect);
+      return ref + text + pockets;
+    }
+
+    function tableBlock(cap, vals, spec, marks, drop, isNew) {
+      return "<div class='rb-block table" + (isNew ? " fresh" : "") + "'>" +
+        "<p class='tbl-cap'>" + cap + "</p>" +
+        drawTable(vals, spec, marks, drop) +
+        "</div>";
+    }
+
+    function calcBlock(s, isNew) {
+      return "<div class='rb-block calc" + (isNew ? " fresh" : "") + "'>" +
+        "<h3>" + s.title + "</h3>" + calcInner(s) +
+        "</div>";
+    }
+
+    function paint() {
+      const startSpec = { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC };
+      const takeFromStart = k > 0 ? (steps[k - 1].src || []) : ["2,2"];
+      let html = tableBlock(
+        k > 0 && steps[k - 1].src ? "Таблица 2. Голубым те числа, которые берём в расчёте ниже" : "Таблица 2, с неё начинаем последний обмен",
+        startVals,
+        startSpec,
+        { src: new Set(takeFromStart) },
+        false,
+        k === 0
+      );
+      for (let i = 0; i < k; i++) {
+        const s = steps[i];
+        const last = i === k - 1;
+        html += "<div class='rb-down'>↓</div>";
+        html += calcBlock(s, last);
+        html += "<div class='rb-down'>↓</div>";
+        const fresh = Object.keys(s.set || {}).filter((key) => !(s.now || []).includes(key));
+        html += tableBlock(
+          s.cap,
+          merged(i),
+          Object.assign({ pr: PR, pc: PC, dropCol: DROP, cross: i === 0 }, s),
+          { now: new Set(s.now || []), fresh: new Set(fresh) },
+          !!s.drop,
+          last
+        );
+      }
+      chainEl.innerHTML = html;
+      cnt.textContent = (k + 1) + " / " + total;
+      if (prevB) prevB.disabled = k === 0;
+      if (nextB) nextB.disabled = k === steps.length;
+      const last = chainEl.querySelector(".rb-block.fresh");
+      if (last && k > 0) last.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    if (prevB) prevB.onclick = () => { if (k > 0) { k--; paint(); } };
+    if (nextB) nextB.onclick = () => { if (k < steps.length) { k++; paint(); } };
+    paint();
+  }
+
+  function bindRebuildMain() {
+    const startVals = {
+      "0,0": F(2), "0,1": F(-1), "0,b": F(2),
+      "1,0": F(-3), "1,1": F(1), "1,b": F(3),
+      "2,0": F(1), "2,1": F(0), "2,b": F(1),
+      "c,0": F(-6), "c,1": F(3), Q: F(-1)
+    };
+    const startRows = [1, 3, 5];
+    const startCols = [2, 4];
+    const R = [1, 3, 2];
+    const C = [5, 4];
+    const PR = 2;
+    const PC = 0;
+    const acc = {};
+    function S(spec) {
+      if (spec.add) Object.assign(acc, spec.add);
+      spec.set = Object.assign({}, acc);
+      if (!spec.rows) spec.rows = R;
+      if (!spec.cols) spec.cols = C;
+      return spec;
+    }
+
+    const steps = [
+      S({
+        cap: "Та же таблица. Смотрим, кто входит",
+        title: "Откуда эта таблица и кто входит",
+        rows: startRows,
+        cols: startCols,
+        why: "<div class='why'>" +
+          "<p>Три верхние строки скопированы из таблицы 3. Это уже допустимая вершина: x = (2, 0, 3, 0, 1), W = 1. Низ другой: не W<sub>a</sub>, а настоящая W = 1 − 6x<sub>2</sub> + 3x<sub>4</sub>. Угол −Q = −1, значит Q = 1.</p>" +
+          "<p>Столбцы не вычёркиваем. x<sub>2</sub> и x<sub>4</sub> свои, обе могут вернуться в базис.</p>" +
+          "<p class='k'>Кто входит</p>" +
+          "<p>Правило то же: свободная с c<sub>j</sub> &lt; 0. Здесь c<sub>2</sub> = −6, c<sub>4</sub> = 3. Минус только у x<sub>2</sub>. Одно пирожное уменьшает свои деньги на 6, для минимума берём x<sub>2</sub>.</p>" +
+          "<p class='eq'>входит x<sub>2</sub></p>" +
+          "</div>",
+        now: ["c,0", "col:0"]
+      }),
+      S({
+        cap: "Выбрали строку x5",
+        title: "Кто выходит. Ничья в отношениях",
+        rows: startRows,
+        cols: startCols,
+        why: "<div class='why'>" +
+          "<p>В столбце x<sub>2</sub> смотрим положительные a и считаем b/a. Отрицательные и нули строку не дают: по такому направлению базисная не упирается в ноль.</p>" +
+          "<p class='eq'>x<sub>1</sub>: 2 / 2 = 1<br>x<sub>3</sub>: −3 &lt; 0, строку не берём<br>x<sub>5</sub>: 1 / 1 = 1</p>" +
+          "<p>Ничья: и торты, и остаток противня кончатся при x<sub>2</sub> = 1. Оба отношения законны. В конспекте берут строку x<sub>5</sub>, разрешающая 1.</p>" +
+          "<p>После шага одна из двух базисных станет нулём, хотя останется в базисе. Это вырожденная вершина. В конце пути это не страшно.</p>" +
+          "<p class='eq'>выходит x<sub>5</sub>, разрешающая a<sub>52</sub> = 1</p>" +
+          "</div>",
+        now: ["2,0", "row:2"]
+      }),
+      S({
+        cap: "После смены подписей",
+        title: "Меняем подписи",
+        why: "<div class='why'>" +
+          "<p>В базис входит x<sub>2</sub> (пирожные), из базиса выходит x<sub>5</sub> (остаток противня). Строка x<sub>5</sub> становится строкой x<sub>2</sub>, столбец x<sub>2</sub> становится столбцом x<sub>5</sub>.</p>" +
+          "<p>x<sub>5</sub> не вычёркиваем: она своя. Просто станет свободной. Разрешающая снова 1.</p>" +
+          "</div>",
+        now: ["row:2", "col:0"]
+      }),
+      S({
+        cap: "После разрешающей строки и столбца",
+        title: "Строку делим на 1. Откуда минус в столбце",
+        formula: "строка x<sub>2</sub>: 1 &nbsp; 0 &nbsp; b = 1<br>столбец x<sub>5</sub>: −2 &nbsp; 3 &nbsp; c = 6",
+        why: "<div class='why'>" +
+          "<p class='k'>1. Строка</p>" +
+          "<p>Разрешающая строка была:</p>" +
+          "<p class='eq'>x<sub>2</sub> + x<sub>5</sub> = 1</p>" +
+          "<p>x<sub>4</sub> сюда не входит. Делим на 1, числа те же:</p>" +
+          "<p class='eq'>x<sub>2</sub> = 1 − x<sub>5</sub></p>" +
+          "<p>Свободные ноль дают x<sub>2</sub> = 1. Это тот самый потолок из отношений.</p>" +
+          "<p class='k'>2. Минус в столбце ушедшей</p>" +
+          "<p>x<sub>5</sub> ушла вправо. Новое в её столбце = − (старое в столбце x<sub>2</sub>) / 1.</p>" +
+          "<p class='eq'>строка x<sub>1</sub>: −2 / 1 = −2<br>строка x<sub>3</sub>: −(−3) / 1 = 3<br>строка c: −(−6) / 1 = 6</p>" +
+          "<p class='k'>3. Столбец x<sub>4</sub> не трогаем</p>" +
+          "<p>В новой строке x<sub>2</sub> у x<sub>4</sub> ноль. Весь столбец x<sub>4</sub> остаётся: −1, 1, 0 и c = 3.</p>" +
+          "</div>",
+        add: {
+          "2,0": F(1), "2,1": F(0), "2,b": F(1),
+          "0,0": F(-2), "1,0": F(3), "c,0": F(6)
+        },
+        now: ["2,0", "2,1", "2,b", "0,0", "1,0", "c,0"]
+      }),
+      S({
+        cap: "После правых частей",
+        title: "Прямоугольники столбца b",
+        formula: "x<sub>1</sub>: 2 − 1·2 / 1 = 0<br>x<sub>3</sub>: 3 − 1·(−3) / 1 = 6",
+        src: ["2,0", "2,b", "0,0", "0,b", "1,0", "1,b"],
+        notes: "Столбец x<sub>4</sub> уже не меняется. Меняются правые части: сколько тортов и пирогов в новой вершине. Флажок открывает разбор.",
+        pockets: [
+          {
+            title: "Подробнее: правая часть x<sub>1</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое 2, сосед по строке 1, сосед по столбцу 2, разрешающая 1.</p>" +
+              "<div class='old2'>x<sub>5</sub>: <span class='mk p'>1</span> x<sub>2</sub> = <span class='mk n'>1</span><br>x<sub>1</sub>: <span class='mk t'>2</span> x<sub>2</sub> = <span class='mk q'>2</span></div>" +
+              "<p>Из скобки x<sub>2</sub> = 1 − x<sub>5</sub> в строку x<sub>1</sub> приходит 2·1 = 2. Старое было 2, поэтому 2 − 2 = 0.</p>" +
+              "<p class='eq'>2 − 1·2 / 1 = 0</p>" +
+              "<p>В новой вершине x<sub>1</sub> = 0, хотя торты всё ещё базисные. Это и есть вырожденность: три плоскости сошлись, базисная переменная ноль.</p>" +
+              "</div>",
+            rect: { p: "1", n: "1", t: "2", q: "2", result: "0", top: "из строки x<sub>5</sub>", side: "из строки x<sub>1</sub>" }
+          },
+          {
+            title: "Подробнее: правая часть x<sub>3</sub>",
+            why: "<div class='why'>" +
+              "<p>Старое 3, сосед по столбцу −3.</p>" +
+              "<p class='eq'>3 − 1·(−3) / 1 = 3 + 3 = 6</p>" +
+              "<p>Пирогов стало 6. Один торт ушёл, три пирога добавились за одно пирожное, плюс те три, что уже были: 3 + 3 = 6. Или из формулы x<sub>3</sub> = 3 + 3x<sub>2</sub> − x<sub>4</sub> при x<sub>2</sub> = 1, x<sub>4</sub> = 0.</p>" +
+              "</div>",
+            rect: { p: "1", n: "1", t: "−3", q: "3", result: "6", top: "из строки x<sub>5</sub>", side: "из строки x<sub>3</sub>" }
+          }
+        ],
+        add: { "0,b": F(0), "1,b": F(6) },
+        now: ["0,b", "1,b"]
+      }),
+      S({
+        cap: "После нижней строки и угла",
+        title: "Прямоугольники строки c и угла −Q",
+        formula: "c<sub>5</sub> уже 6 (столбец ушедшей)<br>c<sub>4</sub>: 3 − 0·(−6) / 1 = 3<br>−Q: −1 − 1·(−6) / 1 = 5",
+        src: ["2,0", "2,1", "2,b", "c,0", "c,1", "Q"],
+        notes: "c<sub>4</sub> не меняется: сосед по строке ноль. Угол становится 5. Это −Q, значит Q = −5. Флажок открывает разбор.",
+        pockets: [
+          {
+            title: "Подробнее: c при x<sub>4</sub>",
+            why: "<div class='why'>" +
+              "<p>В разрешающей строке у x<sub>4</sub> ноль, клетка остаётся 3.</p>" +
+              "<p class='eq'>3 − 0·(−6) / 1 = 3</p>" +
+              "</div>",
+            rect: { p: "1", n: "0", t: "−6", q: "3", result: "3", top: "из строки x<sub>5</sub>", side: "из строки c" }
+          },
+          {
+            title: "Подробнее: угол −Q",
+            why: "<div class='why'>" +
+              "<p>Старое −1, сосед по строке 1, сосед по столбцу −6.</p>" +
+              "<p class='eq'>−1 − 1·(−6) / 1 = −1 + 6 = 5</p>" +
+              "<p>Подстановка в цель: W = 1 − 6x<sub>2</sub> + 3x<sub>4</sub>, x<sub>2</sub> = 1 − x<sub>5</sub>:</p>" +
+              "<p class='eq'>W = 1 − 6(1 − x<sub>5</sub>) + 3x<sub>4</sub> = −5 + 6x<sub>5</sub> + 3x<sub>4</sub></p>" +
+              "<p>Свободные ноль дают W = −5. Угол таблицы это −Q = 5, потому что Q = −5. Оба коэффициента внизу теперь плюсы: увеличивать свободные цель портит. Минимум найден.</p>" +
+              "</div>",
+            rect: { p: "1", n: "1", t: "−6", q: "−1", result: "5", top: "из строки x<sub>5</sub>", side: "угол −Q" }
+          }
+        ],
+        add: { Q: F(5) },
+        now: ["c,1", "Q"]
+      }),
+      S({
+        cap: "Основная таблица 1. Столбцы на месте",
+        title: "Столбцы не вычёркиваем",
+        why: "<div class='why'>" +
+          "<p>x<sub>5</sub> своя, просто свободная. Её столбец оставляем. Внизу c = (6, 3), оба ≥ 0. Нового пивота нет.</p>" +
+          "<p>Базис: x<sub>1</sub> = 0, x<sub>3</sub> = 6, x<sub>2</sub> = 1. Свободные x<sub>4</sub> = x<sub>5</sub> = 0. Точка x* = (0, 1, 6, 0, 0), W* = −5.</p>" +
+          "<p>Дальше только читаем ответ и проверяем исходные условия. Считать больше нечего.</p>" +
+          "</div>",
+        now: []
+      })
+    ];
+
+    let k = 0;
+    const chainEl = document.getElementById("rb-chain");
+    const cnt = document.getElementById("rb-cnt");
+    const prevB = document.getElementById("rb-prev");
+    const nextB = document.getElementById("rb-next");
+    if (!chainEl || !cnt) return;
+    const total = steps.length + 1;
+
+    function merged(idx) {
+      const v = Object.assign({}, startVals);
+      if (idx >= 0) Object.assign(v, steps[idx].set || {});
+      return v;
+    }
+
+    function markClass(key, marks) {
+      if (marks.now && marks.now.has(key)) return " now";
+      if (marks.src && marks.src.has(key)) return " src";
+      if (marks.fresh && marks.fresh.has(key)) return " fresh";
+      return "";
+    }
+
+    function drawTable(vals, spec, marks, drop) {
+      marks = marks || {};
+      const cols = spec.cols;
+      const rows = spec.rows;
+      const cross = !!spec.cross;
+      const pr = spec.pr != null ? spec.pr : PR;
+      const pc = spec.pc != null ? spec.pc : PC;
+      let h = "<table class='sx'><thead><tr><th></th>";
+      cols.forEach((j, cj) => {
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<th class='" + ent + markClass("col:" + cj, marks) + "'>" + x(j) + "</th>";
+      });
+      h += "<th>b</th></tr></thead><tbody>";
+      rows.forEach((i, ri) => {
+        const leave = cross && ri === pr ? " row-leave" : "";
+        h += "<tr><td class='rowh " + leave + markClass("row:" + ri, marks) + "'>" + x(i) + "</td>";
+        cols.forEach((j, cj) => {
+          const key = ri + "," + cj;
+          const ent = cross && cj === pc ? " col-enter" : "";
+          const pv = (cross && ri === pr && cj === pc) ? " pivot" : "";
+          h += "<td class='" + leave + ent + pv + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+        });
+        const bk = ri + ",b";
+        h += "<td class='" + leave + markClass(bk, marks) + "'>" + htmlF(vals[bk]) + "</td></tr>";
+      });
+      h += "<tr><td class='rowh obj'>c</td>";
+      cols.forEach((j, cj) => {
+        const key = "c," + cj;
+        const ent = cross && cj === pc ? " col-enter" : "";
+        h += "<td class='obj " + ent + markClass(key, marks) + "'>" + htmlF(vals[key]) + "</td>";
+      });
+      h += "<td class='obj" + markClass("Q", marks) + "'>" + htmlF(vals.Q) + "</td></tr></tbody></table>";
+      return h;
+    }
+
+    function rectHTML(r) {
+      return "<div class='rect-block'><div class='rect big'>" +
+        "<b class='p'>" + r.p + "</b><b class='n'>" + (r.n || "·") + "</b><span>" + (r.top || "") + "</span>" +
+        "<b class='t'>" + (r.t || "·") + "</b><b class='q'>" + r.q + "</b><span>" + (r.side || "") + "</span>" +
+        "</div><p class='rect-key'>" +
+        "<i class='sw' style='background:#e8c48a'></i>разрешающая &nbsp; " +
+        "<i class='sw' style='background:#f6e6d4'></i>сосед по строке &nbsp; " +
+        "<i class='sw' style='background:#dbeaf0'></i>сосед по столбцу &nbsp; " +
+        "<i class='sw' style='background:#e8efd8'></i>старое в клетке</p>" +
+        "<p class='eq'>новое = <span class='mk q'>старое в клетке</span> − (<span class='mk n'>сосед по строке</span>)·(<span class='mk t'>сосед по столбцу</span>) / <span class='mk p'>разрешающая</span></p>" +
+        "<p class='eq'>новое = <span class='mk q'>" + r.q + "</span> − (<span class='mk n'>" + r.n + "</span>)·(<span class='mk t'>" + r.t + "</span>) / <span class='mk p'>" + r.p + "</span>" +
+        (r.result ? " = " + r.result : "") + "</p></div>";
+    }
+
+    function originTable(srcKeys) {
+      return "<div class='rb-ref'>" +
+        "<p class='tbl-cap'>Основная таблица 0. Голубым те клетки, которые берём</p>" +
+        drawTable(startVals, { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC }, { src: new Set(srcKeys || []) }, false) +
+        "</div>";
+    }
+
+    function pocketHTML(p) {
+      return "<details class='pocket'>" +
+        "<summary><span class='pocket-title'>" + p.title + "</span></summary>" +
+        "<div class='pocket-body'>" +
+        (p.why || "") +
+        (p.rect ? "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(p.rect) : "") +
+        "</div></details>";
+    }
+
+    function calcInner(s) {
+      const ref = s.src ? originTable(s.src) : "";
+      const text = (s.formula && !s.rect ? "<p class='eq' style='margin-top:0'>" + s.formula + "</p>" : "") +
+        (s.why || "") +
+        (s.notes ? "<p class='note'" + (s.formula || s.why ? "" : " style='margin-top:0'") + ">" + s.notes + "</p>" : "");
+      const pockets = (s.pockets || []).map(pocketHTML).join("");
+      if (s.rect) return ref + text + "<p class='k' style='margin:12px 0 6px'>Те же четыре числа короткой записью</p>" + rectHTML(s.rect);
+      return ref + text + pockets;
+    }
+
+    function tableBlock(cap, vals, spec, marks, drop, isNew) {
+      return "<div class='rb-block table" + (isNew ? " fresh" : "") + "'>" +
+        "<p class='tbl-cap'>" + cap + "</p>" +
+        drawTable(vals, spec, marks, drop) +
+        "</div>";
+    }
+
+    function calcBlock(s, isNew) {
+      return "<div class='rb-block calc" + (isNew ? " fresh" : "") + "'>" +
+        "<h3>" + s.title + "</h3>" + calcInner(s) +
+        "</div>";
+    }
+
+    function paint() {
+      const startSpec = { rows: startRows, cols: startCols, cross: true, pr: PR, pc: PC };
+      const takeFromStart = k > 0 ? (steps[k - 1].src || []) : ["c,0"];
+      let html = tableBlock(
+        k > 0 && steps[k - 1].src ? "Основная таблица 0. Голубым те числа, которые берём ниже" : "Основная таблица 0",
+        startVals,
+        startSpec,
+        { src: new Set(takeFromStart) },
+        false,
+        k === 0
+      );
+      for (let i = 0; i < k; i++) {
+        const s = steps[i];
+        const last = i === k - 1;
+        html += "<div class='rb-down'>↓</div>";
+        html += calcBlock(s, last);
+        html += "<div class='rb-down'>↓</div>";
+        const fresh = Object.keys(s.set || {}).filter((key) => !(s.now || []).includes(key));
+        html += tableBlock(
+          s.cap,
+          merged(i),
+          Object.assign({ pr: PR, pc: PC, cross: i < 3 }, s),
+          { now: new Set(s.now || []), fresh: new Set(fresh) },
+          false,
+          last
+        );
+      }
+      chainEl.innerHTML = html;
+      cnt.textContent = (k + 1) + " / " + total;
+      if (prevB) prevB.disabled = k === 0;
+      if (nextB) nextB.disabled = k === steps.length;
+      const last = chainEl.querySelector(".rb-block.fresh");
+      if (last && k > 0) last.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    if (prevB) prevB.onclick = () => { if (k > 0) { k--; paint(); } };
+    if (nextB) nextB.onclick = () => { if (k < steps.length) { k++; paint(); } };
+    paint();
+  }
+
+  function bindRulesDemo() {
+    const seg = document.getElementById("rules-seg");
+    function show(name) {
+      seg.querySelectorAll("button[data-rule]").forEach((b) => b.classList.toggle("on", b.getAttribute("data-rule") === name));
+      document.querySelectorAll("[data-rule-panel]").forEach((p) => {
+        p.hidden = p.getAttribute("data-rule-panel") !== name;
+      });
+    }
+    seg.querySelectorAll("button[data-rule]").forEach((b) => {
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        show(b.getAttribute("data-rule"));
+      });
+    });
+    show("col");
+  }
+
+  function bindCanonDemo() {
+    const seg = document.getElementById("canon-seg");
+    function show(name) {
+      seg.querySelectorAll("button[data-canon]").forEach((b) => b.classList.toggle("on", b.getAttribute("data-canon") === name));
+      document.querySelectorAll("[data-canon-panel]").forEach((p) => {
+        p.hidden = p.getAttribute("data-canon-panel") !== name;
+      });
+    }
+    seg.querySelectorAll("button[data-canon]").forEach((b) => {
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        show(b.getAttribute("data-canon"));
+      });
+    });
+    const zeroBtn = document.getElementById("canon-zero-btn");
+    const backBtn = document.getElementById("canon-back-btn");
+    const eqs = document.getElementById("canon-eqs");
+    const verd = document.getElementById("canon-verdicts");
+    if (zeroBtn && backBtn && eqs && verd) {
+      zeroBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        eqs.innerHTML = "<span class='nv'>− x<sub>4</sub></span> = 12<br>0 = 5<br><span class='nv'>x<sub>5</sub></span> = 6";
+        verd.hidden = false;
+      });
+      backBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        eqs.innerHTML = "3x<sub>1</sub> + 2x<sub>3</sub> <span class='nv'>− x<sub>4</sub></span> = 12<br>x<sub>1</sub> − x<sub>2</sub> + x<sub>3</sub> = 5<br>x<sub>1</sub> + x<sub>3</sub> <span class='nv'>+ x<sub>5</sub></span> = 6";
+        verd.hidden = true;
+      });
+    }
+    show("signs");
+  }
+
+  function bindAuxZero() {
+    const mount = document.getElementById("aux-table");
+    if (mount) {
+      mount.innerHTML = tableauHTML(T0start);
+    }
+    const zeroBtn = document.getElementById("aux-zero-btn");
+    const backBtn = document.getElementById("aux-back-btn");
+    const read = document.getElementById("aux-read");
+    const msg = document.getElementById("aux-read-msg");
+    if (!zeroBtn || !backBtn || !read || !msg) return;
+    zeroBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      read.hidden = false;
+      msg.hidden = false;
+    });
+    backBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      read.hidden = true;
+      msg.hidden = true;
+    });
+  }
+
+  function bindCreamWidget() {
+    let x1 = 0, x3 = 0;
+    const elX1 = document.getElementById("cream-x1");
+    const elX3 = document.getElementById("cream-x3");
+    const elEq = document.getElementById("cream-eq");
+    const elMsg = document.getElementById("cream-msg");
+    const meter = document.getElementById("cream-meter");
+    if (!elX1 || !elX3 || !elEq || !elMsg || !meter) return;
+
+    function paint() {
+      const v = 3 * x1 + 2 * x3;
+      const ok = v >= 12;
+      elX1.textContent = String(x1);
+      elX3.textContent = String(x3);
+      elEq.textContent = "3·" + x1 + " + 2·" + x3 + " = " + v;
+      elMsg.textContent = ok
+        ? "Хватает. Договор закрыт, можно везти в кофейню."
+        : "Пока мало. Нужно ещё " + (12 - v) + " бан. Кофейня витрину не откроет.";
+      meter.classList.toggle("ok", ok);
+      meter.querySelector("i").style.width = Math.min(100, (v / 12) * 100) + "%";
+    }
+
+    document.querySelectorAll("[data-cream]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const d = +btn.getAttribute("data-cream");
+        const which = btn.getAttribute("data-var");
+        if (which === "x1") x1 = Math.max(0, Math.min(8, x1 + d));
+        if (which === "x3") x3 = Math.max(0, Math.min(8, x3 + d));
+        paint();
+      });
+    });
+    paint();
+  }
+
+  function drawGeom() {
+    const svg = document.getElementById("geom");
+    if (!svg) return;
+    const X0 = 72, Y0 = 428, S = 56;
+    const X = (x1) => X0 + x1 * S;
+    const Y = (x3) => Y0 - x3 * S;
+    function line(x1, y1, x2, y2, extra) {
+      return '<line x1="' + X(x1) + '" y1="' + Y(y1) + '" x2="' + X(x2) + '" y2="' + Y(y2) + '" ' + extra + " />";
+    }
+    function pill(px, py, w, h, label, ink, fill, stroke) {
+      return '<g>' +
+        '<rect x="' + px + '" y="' + py + '" width="' + w + '" height="' + h + '" rx="7" fill="' + (fill || "#fffdf8") + '" stroke="' + (stroke || "#d9d0c3") + '"/>' +
+        '<text x="' + (px + 10) + '" y="' + (py + 16) + '" font-size="13" font-weight="650" fill="' + (ink || "#1c1916") + '">' + label + "</text>" +
+        "</g>";
+    }
+
+    let g = '<defs>';
+    g += '<marker id="geom-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">';
+    g += '<path d="M 0 1.2 L 10 5 L 0 8.8 z" fill="#1f4d63"/>';
+    g += "</marker></defs>";
+    g += '<g font-family="Segoe UI, Cambria, Georgia, serif" fill="#1c1916">';
+
+    for (let n = 0; n <= 6; n++) {
+      g += '<line x1="' + X(0) + '" y1="' + Y(n) + '" x2="' + X(6.35) + '" y2="' + Y(n) + '" stroke="#efe8dc"/>';
+      g += '<line x1="' + X(n) + '" y1="' + Y(0) + '" x2="' + X(n) + '" y2="' + Y(6.35) + '" stroke="#efe8dc"/>';
+    }
+
+    g += line(-0.05, 5.05, 5.15, -0.15, 'stroke="#9a3412" stroke-width="1.7" stroke-dasharray="6 4"');
+    g += line(4.2, -0.3, -0.15, 6.225, 'stroke="#b45309" stroke-width="1.7" stroke-dasharray="6 4"');
+    g += line(6.2, -0.2, -0.15, 6.2, 'stroke="#155e75" stroke-width="1.7" stroke-dasharray="6 4"');
+
+    const poly = [[5, 0], [6, 0], [0, 6], [2, 3]].map(function (p) { return X(p[0]) + "," + Y(p[1]); }).join(" ");
+    g += '<polygon points="' + poly + '" fill="#c5d6c0" fill-opacity="0.88" stroke="#3f5c3a" stroke-width="1.6"/>';
+
+    const dx = -2, dy = 3, len = Math.sqrt(13);
+    const ux = dx / len, uy = dy / len;
+    g += '<line x1="' + X(2 + ux * 0.28) + '" y1="' + Y(3 + uy * 0.28) + '" x2="' + X(0 - ux * 0.34) + '" y2="' + Y(6 - uy * 0.34) + '" stroke="#1f4d63" stroke-width="3.2" marker-end="url(#geom-arr)"/>';
+
+    g += line(0, 0, 6.55, 0, 'stroke="#1c1916" stroke-width="1.5"');
+    g += line(0, 0, 0, 6.55, 'stroke="#1c1916" stroke-width="1.5"');
+    g += '<text x="' + (X(6.55) + 10) + '" y="' + (Y0 + 4) + '" font-size="15" font-weight="650">торты x₁</text>';
+    g += '<text x="' + (X0 - 6) + '" y="' + (Y(6.55) - 10) + '" font-size="15" font-weight="650">пироги x₃</text>';
+    for (let n = 0; n <= 6; n++) {
+      g += '<text x="' + X(n) + '" y="' + (Y0 + 20) + '" font-size="12" fill="#6b645b" text-anchor="middle">' + n + "</text>";
+      if (n > 0) g += '<text x="' + (X0 - 10) + '" y="' + (Y(n) + 4) + '" font-size="12" fill="#6b645b" text-anchor="end">' + n + "</text>";
+    }
+
+    g += '<text x="' + X(3.7) + '" y="' + (Y(0.22) + 4) + '" font-size="13" font-weight="650" fill="#b45309">крем = 12</text>';
+    g += '<text x="' + X(2.55) + '" y="' + (Y(3.75) - 4) + '" font-size="13" font-weight="650" fill="#155e75">противень = 6</text>';
+    g += '<text x="' + X(3.25) + '" y="' + (Y(1.2) + 14) + '" font-size="13" font-weight="650" fill="#9a3412">x₂ = 0</text>';
+
+    [[5, 0], [6, 0]].forEach(function (p) {
+      g += '<circle cx="' + X(p[0]) + '" cy="' + Y(p[1]) + '" r="4.5" fill="#b0a89c"/>';
+    });
+    g += '<circle cx="' + X(2) + '" cy="' + Y(3) + '" r="7" fill="#1c1916"/>';
+    g += '<circle cx="' + X(0) + '" cy="' + Y(6) + '" r="7" fill="#1f4d63"/>';
+    g += pill(X(2) + 16, Y(3) + 10, 108, 24, "старт · W = 1");
+    g += pill(X(0) + 20, Y(6) - 30, 146, 24, "оптимум · W = −5", "#1f4d63", "#e4eef2", "#1f4d63");
+    g += "</g>";
+    svg.innerHTML = g;
+  }
+
+  let i = 0;
+  const main = document.getElementById("main");
+  const toc = document.getElementById("toc");
+  const phase = document.getElementById("phase");
+  const counter = document.getElementById("counter");
+  const bar = document.getElementById("bar");
+  const prev = document.getElementById("prev");
+  const next = document.getElementById("next");
+
+  toc.innerHTML = "<h2>Ход практики</h2>" + slides.map((s, k) =>
+    "<button type='button' data-i='" + k + "'><span class='n'>" + (k + 1) + "</span>" + s.toc + "</button>"
+  ).join("");
+
+  function render() {
+    const s = slides[i];
+    phase.textContent = s.phase;
+    counter.textContent = (i + 1) + " / " + slides.length;
+    bar.style.width = ((i + 1) / slides.length * 100) + "%";
+    prev.disabled = i === 0;
+    next.disabled = i === slides.length - 1;
+    toc.querySelectorAll("button").forEach((b, k) => b.classList.toggle("active", k === i));
+    document.querySelector(".stage").classList.toggle("wide-slide", !!s.wide);
+
+    main.innerHTML = "<div class='slide" + (s.wide ? " wide" : "") + (s.id === "geom" ? " geom-slide" : "") + (s.id === "hw" ? " hw-slide" : "") + "'><h1>" + s.title + "</h1><p class='lead'>" + s.lead + "</p>" +
+      (s.html || "") +
+      (s.tableau ? tableauHTML(s.tableau) : "") +
+      (s.htmlAfter || "") +
+      "</div>";
+    if (s.onEnter) s.onEnter();
+  }
+
+  prev.onclick = () => { if (i > 0) { i--; render(); } };
+  next.onclick = () => { if (i < slides.length - 1) { i++; render(); } };
+  toc.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-i]");
+    if (!b) return;
+    i = +b.getAttribute("data-i");
+    render();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("details, summary") && (e.key === " " || e.key === "Enter")) return;
+    const rbNext = document.getElementById("rb-next");
+    const rbPrev = document.getElementById("rb-prev");
+    if (rbNext && (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ")) {
+      e.preventDefault();
+      if (!rbNext.disabled) { rbNext.click(); return; }
+      if (i < slides.length - 1) { i++; render(); }
+      return;
+    }
+    if (rbPrev && (e.key === "ArrowLeft" || e.key === "PageUp")) {
+      e.preventDefault();
+      if (!rbPrev.disabled) { rbPrev.click(); return; }
+      if (i > 0) { i--; render(); }
+      return;
+    }
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+      e.preventDefault();
+      if (i < slides.length - 1) { i++; render(); }
+    }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      e.preventDefault();
+      if (i > 0) { i--; render(); }
+    }
+    if (e.key === "Home") { i = 0; render(); }
+    if (e.key === "End") { i = slides.length - 1; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
